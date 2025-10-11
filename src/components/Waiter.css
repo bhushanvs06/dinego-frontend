@@ -1,0 +1,246 @@
+/* --- Global Styles --- */
+body {
+  background-color: #0a0a0f;
+  color: white;
+  font-family: "Poppins", sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.waiter-container {
+  padding: 20px;
+  background-color: #0a0a0f;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.waiter-title {
+  text-align: center;
+  color: #b084f0;
+  font-size: 2.2rem;
+  margin-bottom: 5px;
+}
+
+.order-list-title {
+  text-align: center;
+  color: #d2b8ff;
+  font-size: 1.3rem;
+  margin-bottom: 25px;
+}
+
+.order-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  width: 100%;
+  max-width: 1000px;
+}
+
+/* --- Order Card --- */
+.order-card {
+  background: linear-gradient(145deg, #180020, #100015);
+  border: 2px solid #4b0082;
+  border-radius: 15px;
+  padding: 18px;
+  box-shadow: 0px 0px 15px rgba(110, 0, 180, 0.5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* Vertically center content */
+  transition: 0.3s;
+}
+
+.order-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0px 0px 25px rgba(150, 0, 255, 0.6);
+}
+
+.order-details {
+  flex: 1;
+}
+
+.order-details p {
+  margin: 6px 0;
+  color: #e6e6e6;
+  font-size: 0.95rem;
+}
+
+/* --- Status Styles --- */
+.status {
+  font-weight: bold;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.status.pending {
+  background-color: #ffb84d;
+  color: #000;
+}
+
+.status.served {
+  background-color: #5df08a;
+  color: #000;
+}
+
+/* --- QR Button --- */
+.qr-btn {
+  background-color: #6a0dad;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 15px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+  min-width: 90px;
+  margin-left: 15px; /* Add some space between details and button */
+}
+
+.qr-btn:hover {
+  background-color: #8b00ff;
+  transform: scale(1.05);
+}
+
+/* --- QR Modal --- */
+.qr-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 0, 20, 0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.qr-modal-content {
+  background: #1a0028;
+  border: 2px solid #7a28ff;
+  border-radius: 15px;
+  padding: 25px;
+  width: 90%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(150, 0, 255, 0.6);
+}
+
+.qr-modal-content h3 {
+  color: #d8b6ff;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+/* Container to hold the QrReader component */
+.qr-reader-container {
+  width: 100%;
+  max-width: 300px; /* Control max size of scanner */
+  border-radius: 12px;
+  overflow: hidden; /* Ensures video stays within the border radius */
+  margin-bottom: 15px;
+  border: 2px solid #4b0082;
+}
+
+.scanned-result {
+  color: #5df08a;
+  font-weight: bold;
+  margin-top: 10px;
+  word-break: break-all;
+}
+
+.close-btn {
+  margin-top: 20px;
+  background-color: #6a0dad;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+  width: 100%;
+}
+
+.close-btn:hover {
+  background-color: #8b00ff;
+}
+
+/* --- Responsive --- */
+@media (max-width: 600px) {
+  .waiter-title {
+    font-size: 1.8rem;
+  }
+  .order-card {
+    flex-direction: column;
+    align-items: stretch; /* Make items take full width */
+    padding: 15px;
+  }
+  .qr-btn {
+    margin-top: 15px;
+    margin-left: 0;
+    width: 100%;
+    text-align: center;
+  }
+}
+/* --- Custom Alert Modal --- */
+.custom-alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 0, 20, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Ensures it's on top of everything */
+}
+
+.custom-alert-box {
+  background: #1a0028;
+  border-radius: 15px;
+  padding: 25px 30px;
+  width: 90%;
+  max-width: 350px;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(150, 0, 255, 0.6);
+  border: 2px solid; /* Border color is set below */
+}
+
+/* Style for a successful alert */
+.custom-alert-box.success {
+  border-color: #5df08a; /* Green */
+}
+
+/* Style for a failed/error alert */
+.custom-alert-box.error {
+  border-color: #ff4d4d; /* Red */
+}
+
+.custom-alert-box p {
+  margin: 0 0 20px 0;
+  font-size: 1.1rem;
+  color: #e6e6e6;
+}
+
+.custom-alert-box button {
+  background-color: #6a0dad;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 25px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+  width: 50%;
+}
+
+.custom-alert-box button:hover {
+  background-color: #8b00ff;
+}
