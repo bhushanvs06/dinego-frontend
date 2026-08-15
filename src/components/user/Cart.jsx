@@ -119,10 +119,15 @@ const CartPage = () => {
     syncCart(newCart);
   };
 
+  const [useWallet, setUseWallet] = useState(true);
+
   const subtotal = cart.reduce((acc, i) => acc + i.price * i.quantity, 0);
   const gst = subtotal * gstRate;
   const waiterCharge = special ? 20 : 0;
-  const total = subtotal + gst + waiterCharge;
+  const grossTotal = subtotal + gst + waiterCharge;
+  const appliedWallet = (useWallet && walletBalance > 0) ? Math.min(walletBalance, grossTotal) : 0;
+  const finalPayable = Number((grossTotal - appliedWallet).toFixed(2));
+  const total = finalPayable; // for backwards compatibility
 
   // ── Cash checkout (direct, no payment gateway) ───────────
   const handleCashCheckout = async () => {
@@ -133,7 +138,7 @@ const CartPage = () => {
       const r = await fetch(`${API_URL}/api/user/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ordertype: "take away", tableno: "", paymentMethod: "Cash" }),
+        body: JSON.stringify({ email, ordertype: "take away", tableno: "", paymentMethod: "Cash", appliedWallet }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.message || "Failed to place order");
@@ -148,6 +153,12 @@ const CartPage = () => {
     if (cart.length === 0) { setError("Cart is empty"); return; }
     if (special && !table) { setError("Please enter your table number"); return; }
 
+    // If 100% paid by wallet, call wallet pay endpoint directly!
+    if (finalPayable <= 0) {
+      await handlePayWithWallet();
+      return;
+    }
+
     // Check Razorpay SDK loaded
     if (typeof window.Razorpay === "undefined") {
       setError("Payment gateway not loaded. Please refresh the page.");
@@ -158,11 +169,11 @@ const CartPage = () => {
     setPaying(true);
 
     try {
-      // Step 1: Create Razorpay order on backend
+      // Step 1: Create Razorpay order on backend for finalPayable amount
       const orderRes = await fetch(`${API_URL}/api/razorpay/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total }),
+        body: JSON.stringify({ amount: finalPayable }),
       });
       const orderData = await orderRes.json();
       if (!orderRes.ok) throw new Error(orderData.message || "Failed to create payment order");
@@ -196,6 +207,7 @@ const CartPage = () => {
                 email,
                 ordertype: special ? "on table" : "take away",
                 tableno: special ? table : "",
+                appliedWallet
               }),
             });
             const verifyData = await verifyRes.json();
@@ -204,6 +216,7 @@ const CartPage = () => {
 
             // Payment verified → order placed
             setCart([]);
+            if (verifyData.remainingWallet !== undefined) setWalletBalance(verifyData.remainingWallet);
             setOtp(verifyData.otp || "");
             if (verifyData.otp) {
               setShowQR(true);
@@ -393,28 +406,33 @@ const CartPage = () => {
                 <span className="payment-label">Choose Payment</span>
 
                 {/* Wallet Balance & Payment Option */}
-                <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(168, 85, 247, 0.3)', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, display: 'block' }}>💳 Wallet Credit Balance</span>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: walletBalance >= total ? '#4ade80' : '#c084fc', fontFamily: 'Outfit, sans-serif' }}>
-                      ₹{walletBalance.toFixed(2)}
-                    </span>
+                {walletBalance > 0 && (
+                  <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(168, 85, 247, 0.4)', marginBottom: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: 'white' }}>
+                        <input
+                          type="checkbox"
+                          checked={useWallet}
+                          onChange={(e) => setUseWallet(e.target.checked)}
+                          style={{ width: '16px', height: '16px', accentColor: '#a855f7', cursor: 'pointer' }}
+                        />
+                        💳 Apply Wallet Balance (Available: ₹{walletBalance.toFixed(2)})
+                      </label>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#4ade80' }}>
+                        -₹{appliedWallet.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {appliedWallet > 0 && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border)', paddingTop: '0.35rem' }}>
+                        <span>Bill Total: ₹{grossTotal.toFixed(2)}</span>
+                        <span style={{ color: '#c084fc', fontWeight: 700 }}>
+                          Remaining to Pay: ₹{finalPayable.toFixed(2)}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  {walletBalance >= total ? (
-                    <button
-                      className="pay-btn"
-                      onClick={handlePayWithWallet}
-                      disabled={paying || !acceptingOrders}
-                      style={{ padding: '0.55rem 1rem', fontSize: '0.8rem', width: 'auto', background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white', border: 'none', fontWeight: 700 }}
-                    >
-                      Pay via Wallet (₹{total.toFixed(2)})
-                    </button>
-                  ) : (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      {walletBalance > 0 ? `(₹${(total - walletBalance).toFixed(2)} more needed)` : ''}
-                    </span>
-                  )}
-                </div>
+                )}
 
                 {/* Razorpay notice */}
                 <div className="razorpay-notice">
