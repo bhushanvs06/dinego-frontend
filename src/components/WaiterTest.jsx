@@ -7,20 +7,25 @@ import "./Waiter.css";
 
 const WaiterTest = () => {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
+  const waiterEmail = localStorage.getItem('waiterEmail') || 'waiter@cafe.com';
+  const waiterName = localStorage.getItem('waiterName') || 'Waiter';
+
+  const [orders, setOrders] = useState(() => {
+    const cached = localStorage.getItem(`waiter_orders_${waiterEmail}`);
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [isLoading, setIsLoading] = useState(true);
   const [scanningOrderId, setScanningOrderId] = useState(null);
   const [filter, setFilter] = useState("pending");
   const [activeNav, setActiveNav] = useState("orders"); // 'orders' | 'profile'
   const [alertInfo, setAlertInfo] = useState({ show: false, message: "", type: "" });
-
-  const waiterEmail = localStorage.getItem('waiterEmail') || 'waiter@cafe.com';
-  const waiterName = localStorage.getItem('waiterName') || 'Waiter';
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
   const fetchOrders = async () => {
+    if (orders.length === 0) setIsLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/orders`);
       if (!response.ok) throw new Error('Failed to fetch orders');
@@ -39,8 +44,11 @@ const WaiterTest = () => {
         status: order.status
       }));
       setOrders(mappedOrders);
+      localStorage.setItem(`waiter_orders_${waiterEmail}`, JSON.stringify(mappedOrders));
     } catch (error) {
       console.error('Error fetching orders:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -88,7 +96,11 @@ const WaiterTest = () => {
         message: "✅ Order Served & Verified!",
         type: "success",
       });
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, verified: "Served" } : o));
+      setOrders(prev => {
+        const updated = prev.map(o => o.id === orderId ? { ...o, verified: "Served" } : o);
+        localStorage.setItem(`waiter_orders_${waiterEmail}`, JSON.stringify(updated));
+        return updated;
+      });
     } catch (error) {
       setAlertInfo({
         show: true,
@@ -245,7 +257,21 @@ const WaiterTest = () => {
           </div>
 
       {/* Orders Grid */}
-      {filteredOrders.length === 0 ? (
+      {isLoading && filteredOrders.length === 0 ? (
+        <div className="waiter-order-grid">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <div key={n} className="waiter-card skeleton-card">
+              <div className="skeleton-header"></div>
+              <div className="skeleton-body">
+                <div className="skeleton-line"></div>
+                <div className="skeleton-line"></div>
+                <div className="skeleton-line short"></div>
+                <div className="skeleton-line"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredOrders.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
           <span style={{ fontSize: '2.5rem' }}>📋</span>
           <p style={{ marginTop: '0.5rem' }}>No {filter} orders assigned to you</p>
