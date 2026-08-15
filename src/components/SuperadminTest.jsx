@@ -1096,13 +1096,18 @@ const SuperadminTest = () => {
                         )}
                       </div>
                     )}
-                    {order.status !== 'cancelled' && (
+                    {order.status === 'cancelled' ? (
+                      <div style={{ marginTop: '0.6rem', padding: '0.45rem 0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#4ade80', fontSize: '0.78rem', fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>💸 Refunded to Customer Wallet</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>+₹{order.totalBill}</span>
+                      </div>
+                    ) : (
                       <button
                         className="action-btn delete"
                         onClick={() => handleCancelOrder(order.order_id)}
                         style={{ marginTop: '0.6rem', width: '100%', padding: '0.45rem', fontSize: '0.78rem', fontWeight: 700 }}
                       >
-                        🚫 Cancel Order
+                        🚫 Cancel Order & Refund to Wallet
                       </button>
                     )}
                   </div>

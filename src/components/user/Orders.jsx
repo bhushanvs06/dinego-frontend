@@ -110,6 +110,14 @@ const OrderCard = ({ order, onCancelOrder }) => {
               </div>
             </div>
           )}
+          {order.status === 'cancelled' && (
+            <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border)' }}>
+              <div style={{ padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#4ade80', fontSize: '0.78rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>💸 Refunded to Wallet Credits</span>
+                <span style={{ fontSize: '0.88rem', fontWeight: 800 }}>+₹{order.totalBill?.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
           {order.status !== 'completed' && order.status !== 'cancelled' && (
             <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border)' }}>
               {!order.waiterName && !order.waiterEmail ? (
