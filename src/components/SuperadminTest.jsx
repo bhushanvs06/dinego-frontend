@@ -1,7 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import './Superadmin.css'; // Import CSS
+import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../config';
+import './Superadmin.css';
 
-const API_KEY = 'aea9dbb9c4c2f0048ae00eed7cb8ecd5'; // Replace with your actual API key from https://api.imgbb.com/
+const API_KEY = 'aea9dbb9c4c2f0048ae00eed7cb8ecd5';
+
+const FOOD_IMAGE_PRESETS = [
+  { name: 'Dosa', url: 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80' },
+  { name: 'Samosa / Chai', url: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&q=80' },
+  { name: 'Thali Feast', url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80' },
+  { name: 'Burger', url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80' },
+  { name: 'Pizza', url: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80' },
+  { name: 'Cold Coffee', url: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600&q=80' },
+  { name: 'Biryani', url: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&q=80' },
+  { name: 'Sandwich', url: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=600&q=80' },
+  { name: 'Brownie', url: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&q=80' },
+  { name: 'Ice Cream', url: 'https://images.unsplash.com/photo-1560008511-11c63416e52d?w=600&q=80' },
+  { name: 'Pasta', url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&q=80' },
+  { name: 'Juice / Shake', url: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=600&q=80' }
+];
 
 const categories = [
   { value: 'Breakfast', label: 'Breakfast' },
@@ -12,7 +29,8 @@ const categories = [
 ];
 
 const SuperadminTest = () => {
-  const [activeTab, setActiveTab] = useState('universal'); // Default to first tab
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('universal');
   const [universalItems, setUniversalItems] = useState([]);
   const [dailyItems, setDailyItems] = useState([]);
   const [dailySelections, setDailySelections] = useState(new Set());
@@ -21,6 +39,8 @@ const SuperadminTest = () => {
   const [newSelectedCategory, setNewSelectedCategory] = useState(categories[0].value);
   const [newCustomCategory, setNewCustomCategory] = useState('');
   const [newItemImage, setNewItemImage] = useState(null);
+  const [newItemImageUrl, setNewItemImageUrl] = useState('');
+  const [newBannerImageUrl, setNewBannerImageUrl] = useState('');
   const [editItemId, setEditItemId] = useState(null);
   const [editItemName, setEditItemName] = useState('');
   const [editItemPrice, setEditItemPrice] = useState('');
@@ -34,27 +54,282 @@ const SuperadminTest = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // New states for staff management
   const [newSuperadminEmail, setNewSuperadminEmail] = useState('');
   const [newSuperadminPassword, setNewSuperadminPassword] = useState('');
+  const [newWaiterName, setNewWaiterName] = useState('');
   const [newWaiterEmail, setNewWaiterEmail] = useState('');
-  const [newWaiterPassword, setNewWaiterPassword] = useState('');
   const [superadmins, setSuperadmins] = useState([]);
+  const [acceptingOrders, setAcceptingOrders] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState('All');
+
+  // Banner State
+  const [banners, setBanners] = useState([]);
+  const [newBannerTitle, setNewBannerTitle] = useState('');
+  const [newBannerSubtitle, setNewBannerSubtitle] = useState('');
+  const [newBannerTag, setNewBannerTag] = useState("🔥 TODAY'S COMBO");
+  const [newBannerImage, setNewBannerImage] = useState(null);
+  const [selectedComboItemIds, setSelectedComboItemIds] = useState([]);
+  const [newBannerPrice, setNewBannerPrice] = useState('');
+  const [newBannerDiscount, setNewBannerDiscount] = useState('0');
+  const [showComboItemModal, setShowComboItemModal] = useState(false);
+  const [comboModalCategory, setComboModalCategory] = useState('All');
+
+  const getComboOriginalPrice = (itemIds) => {
+    return universalItems
+      .filter(i => itemIds.includes(i._id))
+      .reduce((s, i) => s + (Number(i.price) || 0), 0);
+  };
+
+  const getInternetFoodImage = (name = '', category = '') => {
+    const text = (name + " " + category).toLowerCase();
+    if (text.includes('dosa')) return 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=600&q=80';
+    if (text.includes('samosa') || text.includes('chai') || text.includes('tea')) return 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&q=80';
+    if (text.includes('thali') || text.includes('meal') || text.includes('rice') || text.includes('paneer') || text.includes('curry')) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80';
+    if (text.includes('burger') || text.includes('fries')) return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80';
+    if (text.includes('pizza')) return 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80';
+    if (text.includes('coffee')) return 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=600&q=80';
+    if (text.includes('biryani') || text.includes('pulao')) return 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&q=80';
+    if (text.includes('sandwich') || text.includes('toast')) return 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=600&q=80';
+    if (text.includes('brownie') || text.includes('cake') || text.includes('pastry')) return 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&q=80';
+    if (text.includes('ice cream') || text.includes('kulfi')) return 'https://images.unsplash.com/photo-1560008511-11c63416e52d?w=600&q=80';
+    if (text.includes('pasta') || text.includes('noodle')) return 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&q=80';
+    if (text.includes('juice') || text.includes('shake') || text.includes('drink') || text.includes('lassi')) return 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=600&q=80';
+    return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80';
+  };
+
+  const getAutoComboImage = (items) => {
+    const itemWithImage = items.find(i => i.image && i.image.trim().length > 0);
+    if (itemWithImage) return itemWithImage.image;
+
+    const namesCombined = items.map(i => i.name.toLowerCase()).join(" ");
+    return getInternetFoodImage(namesCombined, '');
+  };
+
+  const handleToggleComboItem = (item) => {
+    let nextIds;
+    if (selectedComboItemIds.includes(item._id)) {
+      nextIds = selectedComboItemIds.filter(id => id !== item._id);
+    } else {
+      nextIds = [...selectedComboItemIds, item._id];
+    }
+    setSelectedComboItemIds(nextIds);
+
+    const selectedItems = universalItems.filter(i => nextIds.includes(i._id));
+    if (selectedItems.length > 0) {
+      const titleStr = selectedItems.map(i => i.name).join(" + ");
+      const origPrice = getComboOriginalPrice(nextIds);
+      const currentDisc = Number(newBannerDiscount) || 0;
+      const finalPrice = Math.round(origPrice * (1 - currentDisc / 100));
+
+      setNewBannerTitle(titleStr);
+      setNewBannerPrice(finalPrice.toString());
+
+      // AUTOMATIC IMAGE SELECTION FOR COMBOS
+      const autoImg = getAutoComboImage(selectedItems);
+      setNewBannerImageUrl(autoImg);
+
+      if (currentDisc > 0) {
+        setNewBannerSubtitle(`Combo Offer @ ₹${finalPrice} (${currentDisc}% OFF, Save ₹${origPrice - finalPrice})`);
+      } else {
+        setNewBannerSubtitle(`Combo Package @ ₹${finalPrice}`);
+      }
+    } else {
+      setNewBannerTitle('');
+      setNewBannerPrice('');
+      setNewBannerDiscount('0');
+      setNewBannerSubtitle('');
+      setNewBannerImageUrl('');
+    }
+  };
+
+  const handleFinalPriceChange = (val) => {
+    setNewBannerPrice(val);
+    const origPrice = getComboOriginalPrice(selectedComboItemIds);
+    const fp = Number(val);
+    if (origPrice > 0 && !isNaN(fp) && fp >= 0) {
+      const disc = Math.max(0, Math.round(((origPrice - fp) / origPrice) * 100));
+      setNewBannerDiscount(disc.toString());
+      if (disc > 0) {
+        setNewBannerSubtitle(`Combo Offer @ ₹${fp} (${disc}% OFF, Save ₹${origPrice - fp})`);
+      } else {
+        setNewBannerSubtitle(`Combo Package @ ₹${fp}`);
+      }
+    }
+  };
+
+  const handleDiscountPercentChange = (val) => {
+    setNewBannerDiscount(val);
+    const origPrice = getComboOriginalPrice(selectedComboItemIds);
+    const disc = Number(val);
+    if (origPrice > 0 && !isNaN(disc) && disc >= 0) {
+      const fp = Math.round(origPrice * (1 - disc / 100));
+      setNewBannerPrice(fp.toString());
+      if (disc > 0) {
+        setNewBannerSubtitle(`Combo Offer @ ₹${fp} (${disc}% OFF, Save ₹${origPrice - fp})`);
+      } else {
+        setNewBannerSubtitle(`Combo Package @ ₹${fp}`);
+      }
+    }
+  };
+
+  const uniqueCategories = ['All', ...Array.from(new Set([
+    ...categories.map(c => c.value),
+    ...universalItems.map(i => i.category).filter(Boolean)
+  ]))];
+
+  const handleSelectAllCategory = (catName) => {
+    const idsToSelect = universalItems
+      .filter(i => catName === 'All' || i.category === catName)
+      .map(i => i._id);
+    setDailySelections(prev => {
+      const next = new Set(prev);
+      idsToSelect.forEach(id => next.add(id));
+      return next;
+    });
+  };
+
+  const handleDeselectAllCategory = (catName) => {
+    const idsToRemove = new Set(universalItems
+      .filter(i => catName === 'All' || i.category === catName)
+      .map(i => i._id));
+    setDailySelections(prev => {
+      const next = new Set();
+      prev.forEach(id => {
+        if (!idsToRemove.has(id)) next.add(id);
+      });
+      return next;
+    });
+  };
 
   // Fetch universal and daily items on mount
   useEffect(() => {
     fetchUniversalItems();
     fetchDailyItems();
+    fetchCanteenStatus();
   }, []);
+
+  const fetchCanteenStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/canteen-status`);
+      const data = await res.json();
+      setAcceptingOrders(data.acceptingOrders);
+    } catch { /* silence */ }
+  };
+
+  const toggleCanteenStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/canteen-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acceptingOrders: !acceptingOrders })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAcceptingOrders(data.acceptingOrders);
+        setSuccess(`Canteen order status updated: ${data.acceptingOrders ? 'Accepting Orders 🟢' : 'Stopped Receiving Orders 🔴'}`);
+      }
+    } catch {
+      setError('Failed to update store order reception status');
+    }
+  };
+
+  const handleCancelOrder = async (order_id) => {
+    if (!window.confirm(`Are you sure you want to CANCEL order ${order_id}?`)) return;
+    try {
+      const res = await fetch(`${API_URL}/api/cancel-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(`Order ${order_id} has been cancelled!`);
+        fetchAllOrders();
+      } else {
+        setError(data.message || 'Failed to cancel order');
+      }
+    } catch {
+      setError('Server error cancelling order');
+    }
+  };
+
+  const fetchBanners = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/banners`);
+      const data = await res.json();
+      setBanners(data);
+    } catch { /* silence */ }
+  };
+
+  const handleAddBanner = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    try {
+      let image = newBannerImageUrl || '';
+      if (newBannerImage) {
+        const formDataImg = new FormData();
+        formDataImg.append('image', newBannerImage);
+        const responseImg = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
+          method: 'POST',
+          body: formDataImg,
+        });
+        const dataImg = await responseImg.json();
+        if (dataImg.success) image = dataImg.data.url;
+      }
+
+      const selectedItems = universalItems.filter(i => selectedComboItemIds.includes(i._id));
+      const comboItems = selectedItems.map(i => ({ itemName: i.name, rate: Number(i.price), qty: 1 }));
+
+      const res = await fetch(`${API_URL}/api/banners`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newBannerTitle,
+          subtitle: newBannerSubtitle,
+          tag: newBannerTag,
+          image,
+          price: Number(newBannerPrice) || undefined,
+          comboItems
+        })
+      });
+      if (!res.ok) throw new Error('Failed to create banner');
+      setSuccess('Promotional combo banner created!');
+      setNewBannerTitle(''); setNewBannerSubtitle(''); setNewBannerPrice(''); setNewBannerDiscount('0'); setSelectedComboItemIds([]); setNewBannerImage(null); setNewBannerImageUrl('');
+      fetchBanners();
+    } catch (err) { setError(err.message); }
+  };
+
+  const handleDeleteBanner = async (id) => {
+    if (!window.confirm('Delete this combo banner?')) return;
+    try {
+      await fetch(`${API_URL}/api/banners/${id}`, { method: 'DELETE' });
+      setSuccess('Banner deleted');
+      fetchBanners();
+    } catch { setError('Failed to delete banner'); }
+  };
+
+  const handleToggleBanner = async (banner) => {
+    try {
+      await fetch(`${API_URL}/api/banners/${banner._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !banner.active })
+      });
+      fetchBanners();
+    } catch { setError('Failed to update banner status'); }
+  };
 
   useEffect(() => {
     if (activeTab === 'orders') {
-      fetchPendingOrders();
+      fetchAllOrders();
       fetchWaiters();
     }
     if (activeTab === 'staff') {
       fetchWaiters();
       fetchSuperadmins();
+    }
+    if (activeTab === 'banners') {
+      fetchBanners();
     }
   }, [activeTab]);
 
@@ -71,7 +346,7 @@ const SuperadminTest = () => {
 
   const fetchUniversalItems = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/items');
+      const response = await fetch(`${API_URL}/api/items`);
       const data = await response.json();
       setUniversalItems(data);
     } catch (err) {
@@ -81,7 +356,7 @@ const SuperadminTest = () => {
 
   const fetchDailyItems = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/daily-items');
+      const response = await fetch(`${API_URL}/api/daily-items`);
       const data = await response.json();
       setDailyItems(data);
     } catch (err) {
@@ -89,19 +364,21 @@ const SuperadminTest = () => {
     }
   };
 
-  const fetchPendingOrders = async () => {
+  const [ordersFilter, setOrdersFilter] = useState('all');
+
+  const fetchAllOrders = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/pending-orders');
+      const response = await fetch(`${API_URL}/api/orders`);
       const data = await response.json();
       setPendingOrders(data);
     } catch (err) {
-      setError('Failed to fetch pending orders');
+      setError('Failed to fetch orders');
     }
   };
 
   const fetchWaiters = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/waiters');
+      const response = await fetch(`${API_URL}/api/waiters`);
       const data = await response.json();
       setWaiters(data);
     } catch (err) {
@@ -111,7 +388,7 @@ const SuperadminTest = () => {
 
   const fetchSuperadmins = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/superadmins');
+      const response = await fetch(`${API_URL}/api/superadmins`);
       const data = await response.json();
       setSuperadmins(data);
     } catch (err) {
@@ -126,7 +403,7 @@ const SuperadminTest = () => {
     try {
       let category = newSelectedCategory === 'Custom' ? newCustomCategory : newSelectedCategory;
       if (!category) throw new Error('Category required');
-      let imageUrl = null;
+      let imageUrl = newItemImageUrl || null;
       if (newItemImage) {
         const formDataImg = new FormData();
         formDataImg.append('image', newItemImage);
@@ -135,11 +412,14 @@ const SuperadminTest = () => {
           body: formDataImg,
         });
         const dataImg = await responseImg.json();
-        if (!dataImg.success) throw new Error('Failed to upload image to ImgBB');
-        imageUrl = dataImg.data.url;
+        if (dataImg.success) imageUrl = dataImg.data.url;
       }
 
-      const response = await fetch('http://localhost:5000/api/items', {
+      if (!imageUrl) {
+        imageUrl = getInternetFoodImage(newItemName, category);
+      }
+
+      const response = await fetch(`${API_URL}/api/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newItemName, price: newItemPrice, category, image: imageUrl }),
@@ -151,6 +431,7 @@ const SuperadminTest = () => {
       setNewSelectedCategory(categories[0].value);
       setNewCustomCategory('');
       setNewItemImage(null);
+      setNewItemImageUrl('');
       fetchUniversalItems();
     } catch (err) {
       setError(err.message);
@@ -193,7 +474,7 @@ const SuperadminTest = () => {
         image = dataImg.data.url;
       }
 
-      const url = isDaily ? `http://localhost:5000/api/daily-items/${editItemId}` : `http://localhost:5000/api/items/${editItemId}`;
+      const url = isDaily ? `${API_URL}/api/daily-items/${editItemId}` : `${API_URL}/api/items/${editItemId}`;
       const response = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -216,7 +497,7 @@ const SuperadminTest = () => {
     setError('');
     setSuccess('');
     try {
-      const url = isDaily ? `http://localhost:5000/api/daily-items/${id}` : `http://localhost:5000/api/items/${id}`;
+      const url = isDaily ? `${API_URL}/api/daily-items/${id}` : `${API_URL}/api/items/${id}`;
       const response = await fetch(url, {
         method: 'DELETE',
       });
@@ -249,7 +530,7 @@ const SuperadminTest = () => {
     setSuccess('');
     try {
       const selectedIds = Array.from(dailySelections);
-      const response = await fetch('http://localhost:5000/api/set-daily-items', {
+      const response = await fetch(`${API_URL}/api/set-daily-items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ selectedIds }),
@@ -266,26 +547,25 @@ const SuperadminTest = () => {
     setError('');
     setSuccess('');
     try {
-      const response = await fetch('http://localhost:5000/api/assign-order', {
-        method: 'PUT',
+      const response = await fetch(`${API_URL}/api/assign-order`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id, waiterEmail }),
       });
       if (!response.ok) throw new Error('Failed to assign order');
-      setSuccess('Order assigned');
-      fetchPendingOrders();
+      setSuccess('Order assigned to waiter!');
+      fetchAllOrders();
     } catch (err) {
       setError(err.message);
     }
   };
 
-  // New handlers for adding staff
   const handleAddSuperadmin = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     try {
-      const response = await fetch('http://localhost:5000/api/superadmins', {
+      const response = await fetch(`${API_URL}/api/superadmins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: newSuperadminEmail, password: newSuperadminPassword }),
@@ -308,16 +588,17 @@ const SuperadminTest = () => {
     setError('');
     setSuccess('');
     try {
-      const response = await fetch('http://localhost:5000/api/waiters', {
+      const response = await fetch(`${API_URL}/api/waiters`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newWaiterEmail, password: newWaiterPassword }),
+        body: JSON.stringify({ name: newWaiterName, email: newWaiterEmail, password: newWaiterPassword }),
       });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to add waiter');
       }
       setSuccess('Waiter added');
+      setNewWaiterName('');
       setNewWaiterEmail('');
       setNewWaiterPassword('');
       fetchWaiters();
@@ -326,336 +607,1003 @@ const SuperadminTest = () => {
     }
   };
 
+  const handleDeleteSuperadmin = async (id) => {
+    if (!window.confirm("Remove this superadmin?")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/superadmins/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setSuccess("Superadmin removed");
+      fetchSuperadmins();
+    } catch { setError("Failed to remove superadmin"); }
+  };
+
+  const handleEditSuperadmin = async (admin) => {
+    const email = prompt("Edit Superadmin Email:", admin.email);
+    if (!email) return;
+    const password = prompt("Edit Password (leave blank to keep unchanged):");
+    try {
+      const res = await fetch(`${API_URL}/api/superadmins/${admin._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: password || undefined })
+      });
+      if (!res.ok) throw new Error();
+      setSuccess("Superadmin updated");
+      fetchSuperadmins();
+    } catch { setError("Failed to update superadmin"); }
+  };
+
+  const handleDeleteWaiter = async (id) => {
+    if (!window.confirm("Remove this waiter?")) return;
+    try {
+      const res = await fetch(`${API_URL}/api/waiters/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      setSuccess("Waiter removed");
+      fetchWaiters();
+    } catch { setError("Failed to remove waiter"); }
+  };
+
+  const handleEditWaiter = async (waiter) => {
+    const name = prompt("Edit Waiter Name:", waiter.name || "");
+    const email = prompt("Edit Waiter Email:", waiter.email);
+    if (!email) return;
+    const password = prompt("Edit Password (leave blank to keep unchanged):");
+    try {
+      const res = await fetch(`${API_URL}/api/waiters/${waiter._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name || undefined, email, password: password || undefined })
+      });
+      if (!res.ok) throw new Error();
+      setSuccess("Waiter updated");
+      fetchWaiters();
+    } catch { setError("Failed to update waiter"); }
+  };
+
   return (
     <div className="superadmin-container">
-      <div className="sidebar">
-        <button
-          className={`tab-button ${activeTab === 'universal' ? 'active' : ''}`}
-          onClick={() => setActiveTab('universal')}
-        >
-          Universal Items
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'daily' ? 'active' : ''}`}
-          onClick={() => setActiveTab('daily')}
-        >
-          Today's Items
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'orders' ? 'active' : ''}`}
-          onClick={() => setActiveTab('orders')}
-        >
-          Orders
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'staff' ? 'active' : ''}`}
-          onClick={() => setActiveTab('staff')}
-        >
-          Manage Staff
-        </button>
+      {/* Sidebar */}
+      <div className="superadmin-sidebar">
+        <div className="superadmin-brand">
+          <h1>🛡 Superadmin Hub</h1>
+          <p>DineGo Management Center</p>
+        </div>
+
+        <nav className="sidebar-nav">
+          <button
+            className={`admin-nav-btn ${activeTab === 'universal' ? 'active' : ''}`}
+            onClick={() => setActiveTab('universal')}
+          >
+            📋 Universal Menu
+          </button>
+          <button
+            className={`admin-nav-btn ${activeTab === 'daily' ? 'active' : ''}`}
+            onClick={() => setActiveTab('daily')}
+          >
+            📅 Today's Menu
+          </button>
+          <button
+            className={`admin-nav-btn ${activeTab === 'orders' ? 'active' : ''}`}
+            onClick={() => setActiveTab('orders')}
+          >
+            🧾 Live Orders
+          </button>
+          <button
+            className={`admin-nav-btn ${activeTab === 'staff' ? 'active' : ''}`}
+            onClick={() => setActiveTab('staff')}
+          >
+            👥 Staff Management
+          </button>
+          <button
+            className={`admin-nav-btn ${activeTab === 'banners' ? 'active' : ''}`}
+            onClick={() => setActiveTab('banners')}
+          >
+            🎠 Combo Banners
+          </button>
+        </nav>
       </div>
-      <div className="main-content">
+
+      {/* Main Content */}
+      <div className="superadmin-main">
+        {/* Top Bar */}
+        <div className="admin-top-bar">
+          <div className="admin-top-title">
+            <h2>
+              {activeTab === 'universal' && '📋 Universal Menu Registry'}
+              {activeTab === 'daily' && "📅 Today's Active Menu"}
+              {activeTab === 'orders' && '🧾 Live Orders & Waiter Assignment'}
+              {activeTab === 'staff' && '👥 Canteen Staff & Admin Management'}
+              {activeTab === 'banners' && '🎠 Promotional Combo Slider Management'}
+            </h2>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Canteen Status Toggle */}
+            <button
+              onClick={toggleCanteenStatus}
+              style={{
+                padding: '0.45rem 0.95rem',
+                borderRadius: '999px',
+                border: acceptingOrders ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid rgba(239, 68, 68, 0.4)',
+                background: acceptingOrders ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: acceptingOrders ? '#4ade80' : '#fca5a5',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem'
+              }}
+              title="Click to toggle store order reception"
+            >
+              {acceptingOrders ? '🟢 Accepting Orders' : '🔴 Store Closed (Pause Orders)'}
+            </button>
+
+            {error && <span className="error">{error}</span>}
+            {success && <span className="success">{success}</span>}
+            <button
+              className="action-btn delete"
+              style={{ padding: '0.45rem 0.9rem', fontSize: '0.8rem', fontWeight: 700 }}
+              onClick={() => { localStorage.removeItem('adminEmail'); navigate('/login'); }}
+            >
+              Logout 🚪
+            </button>
+          </div>
+        </div>
+
+        {/* Tab 1: Universal Menu */}
         {activeTab === 'universal' && (
-          <div className="tab-content">
-            <h2>Manage Universal Items</h2>
-            <form onSubmit={handleAddItem} className="add-form">
-              <input
-                type="text"
-                placeholder="Item Name"
-                value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
-                required
-              />
-              <input
-                type="number"
-                placeholder="Price"
-                value={newItemPrice}
-                onChange={(e) => setNewItemPrice(e.target.value)}
-                required
-              />
-              <select
-                value={newSelectedCategory}
-                onChange={(e) => setNewSelectedCategory(e.target.value)}
-              >
-                {categories.map(cat => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
-                ))}
-                <option value="Custom">Custom</option>
-              </select>
-              {newSelectedCategory === 'Custom' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="admin-form-card">
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Add New Universal Item</h3>
+              <form onSubmit={handleAddItem} className="form-grid">
                 <input
+                  className="admin-input"
                   type="text"
-                  placeholder="Custom Category"
-                  value={newCustomCategory}
-                  onChange={(e) => setNewCustomCategory(e.target.value)}
+                  placeholder="Item Name"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
                   required
                 />
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setNewItemImage(e.target.files[0])}
-              />
-              <button type="submit">Add Item</button>
-            </form>
-            {error && <p className="error">{error}</p>}
-            {success && <p className="success">{success}</p>}
-            <ul className="item-list">
-              {universalItems.map((item) => (
-                <li key={item._id}>
-                  {editItemId === item._id ? (
-                    <form onSubmit={(e) => handleUpdateItem(e)} className="edit-form">
-                      <input
-                        type="text"
-                        value={editItemName}
-                        onChange={(e) => setEditItemName(e.target.value)}
-                        required
-                      />
-                      <input
-                        type="number"
-                        value={editItemPrice}
-                        onChange={(e) => setEditItemPrice(e.target.value)}
-                        required
-                      />
-                      <select
-                        value={editSelectedCategory}
-                        onChange={(e) => setEditSelectedCategory(e.target.value)}
-                      >
-                        {categories.map(cat => (
-                          <option key={cat.value} value={cat.value}>{cat.label}</option>
-                        ))}
-                        <option value="Custom">Custom</option>
-                      </select>
-                      {editSelectedCategory === 'Custom' && (
-                        <input
-                          type="text"
-                          placeholder="Custom Category"
-                          value={editCustomCategory}
-                          onChange={(e) => setEditCustomCategory(e.target.value)}
-                          required
-                        />
-                      )}
-                      {editItemImageUrl && <img src={editItemImageUrl} alt="Current" style={{ width: '50px', height: '50px' }} />}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setEditItemImage(e.target.files[0])}
-                      />
-                      <button type="submit">Update</button>
-                      <button type="button" onClick={() => setEditItemId(null)}>Cancel</button>
-                    </form>
-                  ) : (
-                    <>
-                      {item.image && <img src={item.image} alt={item.name} style={{ width: '50px', height: '50px', marginRight: '10px' }} />}
-                      {item.category}: {item.name} - ₹{item.price}
-                      <button onClick={() => handleEditItem(item)}>Edit</button>
-                      <button onClick={() => handleDeleteItem(item._id)}>Delete</button>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {activeTab === 'daily' && (
-          <div className="tab-content">
-            <h2>Manage Today's Items</h2>
-            <h3>Select from Universal Items</h3>
-            <ul className="item-list">
-              {universalItems.map((item) => (
-                <li key={item._id}>
+                <input
+                  className="admin-input"
+                  type="number"
+                  placeholder="Price (₹)"
+                  value={newItemPrice}
+                  onChange={(e) => setNewItemPrice(e.target.value)}
+                  required
+                />
+                <select
+                  className="admin-select"
+                  value={newSelectedCategory}
+                  onChange={(e) => setNewSelectedCategory(e.target.value)}
+                >
+                  {categories.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                  <option value="Custom">Custom</option>
+                </select>
+                {newSelectedCategory === 'Custom' && (
                   <input
-                    type="checkbox"
-                    checked={dailySelections.has(item._id)}
-                    onChange={() => handleToggleDaily(item._id)}
+                    className="admin-input"
+                    type="text"
+                    placeholder="Custom Category"
+                    value={newCustomCategory}
+                    onChange={(e) => setNewCustomCategory(e.target.value)}
+                    required
                   />
-                  {item.category}: {item.name} - ₹{item.price}
-                </li>
+                )}
+                <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'white', fontWeight: 700 }}>
+                    🖼️ Item Image Manager (Choose Preset, Paste URL, or Upload File)
+                  </label>
+
+                  {/* Preset Food Image Gallery */}
+                  <div>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.35rem' }}>
+                      Quick 1-Click HD Food Image Presets:
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
+                      {FOOD_IMAGE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => { setNewItemImageUrl(preset.url); setNewItemImage(null); }}
+                          style={{
+                            padding: '0.3rem 0.65rem',
+                            borderRadius: '999px',
+                            border: newItemImageUrl === preset.url ? 'none' : '1px solid var(--border)',
+                            background: newItemImageUrl === preset.url ? 'linear-gradient(135deg, var(--purple-600), var(--purple-700))' : 'var(--bg-card)',
+                            color: newItemImageUrl === preset.url ? 'white' : 'var(--text-muted)',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <input
+                      className="admin-input"
+                      type="url"
+                      placeholder="Or paste image URL (https://...)"
+                      value={newItemImageUrl}
+                      onChange={(e) => setNewItemImageUrl(e.target.value)}
+                      style={{ flex: 2, minWidth: '200px' }}
+                    />
+                    <input
+                      className="admin-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => { setNewItemImage(e.target.files[0]); setNewItemImageUrl(''); }}
+                      style={{ flex: 1, minWidth: '160px' }}
+                    />
+                  </div>
+
+                  {newItemImageUrl && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.2rem' }}>
+                      <img src={newItemImageUrl} alt="Preview" style={{ width: '40px', height: '40px', borderRadius: '6px', objectFit: 'cover' }} />
+                      <span style={{ fontSize: '0.72rem', color: '#4ade80', fontWeight: 600 }}>Selected Preset / URL active</span>
+                    </div>
+                  )}
+                </div>
+
+                <button className="admin-submit-btn" type="submit" style={{ gridColumn: '1 / -1' }}>
+                  + Add Item to Universal Menu
+                </button>
+              </form>
+            </div>
+
+            {/* Category Filter Chips Bar */}
+            <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
+              {uniqueCategories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  style={{
+                    padding: '0.45rem 1rem',
+                    borderRadius: '999px',
+                    border: categoryFilter === cat ? 'none' : '1px solid var(--border)',
+                    background: categoryFilter === cat ? 'linear-gradient(135deg, var(--purple-600), var(--purple-700))' : 'var(--bg-card)',
+                    color: categoryFilter === cat ? 'white' : 'var(--text-muted)',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {cat} ({cat === 'All' ? universalItems.length : universalItems.filter(i => i.category === cat).length})
+                </button>
               ))}
-            </ul>
-            <button onClick={handleSaveDaily}>Save Today's Items</button>
-            <h3>Current Today's Items</h3>
-            <ul className="item-list">
-              {dailyItems.map((item) => (
-                <li key={item._id}>
-                  {editItemId === item._id ? (
-                    <form onSubmit={(e) => handleUpdateItem(e, true)} className="edit-form">
-                      <input
-                        type="text"
-                        value={editItemName}
-                        onChange={(e) => setEditItemName(e.target.value)}
-                        required
-                      />
-                      <input
-                        type="number"
-                        value={editItemPrice}
-                        onChange={(e) => setEditItemPrice(e.target.value)}
-                        required
-                      />
-                      <select
-                        value={editSelectedCategory}
-                        onChange={(e) => setEditSelectedCategory(e.target.value)}
+            </div>
+
+            <div className="admin-grid">
+              {universalItems
+                .filter(item => categoryFilter === 'All' || item.category === categoryFilter)
+                .map((item) => (
+                  <div key={item._id} className="admin-item-card">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="admin-card-img" />
+                    ) : (
+                      <div className="admin-card-img-placeholder">🍴</div>
+                    )}
+
+                    <div className="admin-card-body">
+                      <span className="admin-card-name">{item.name}</span>
+                      <div className="admin-card-meta">
+                        <span className="admin-card-price">₹{item.price}</span>
+                        <span className="admin-card-cat">{item.category}</span>
+                      </div>
+
+                      <div className="admin-card-actions">
+                        <button className="action-btn edit" onClick={() => handleEditItem(item)}>Edit</button>
+                        <button className="action-btn delete" onClick={() => handleDeleteItem(item._id)}>Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Daily Items */}
+        {activeTab === 'daily' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="admin-form-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Select Today's Active Menu</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tap items or use category quick buttons to toggle availability today</p>
+                </div>
+                <button className="admin-submit-btn" onClick={handleSaveDaily}>
+                  💾 Save Active Menu ({dailySelections.size} Selected)
+                </button>
+              </div>
+
+              {/* Category Filter & Quick Selection Bar */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto' }}>
+                    {uniqueCategories.map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setCategoryFilter(cat)}
+                        style={{
+                          padding: '0.4rem 0.9rem',
+                          borderRadius: '999px',
+                          border: categoryFilter === cat ? 'none' : '1px solid var(--border)',
+                          background: categoryFilter === cat ? 'linear-gradient(135deg, var(--purple-600), var(--purple-700))' : 'var(--bg-secondary)',
+                          color: categoryFilter === cat ? 'white' : 'var(--text-muted)',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
                       >
-                        {categories.map(cat => (
-                          <option key={cat.value} value={cat.value}>{cat.label}</option>
-                        ))}
-                        <option value="Custom">Custom</option>
-                      </select>
-                      {editSelectedCategory === 'Custom' && (
-                        <input
-                          type="text"
-                          placeholder="Custom Category"
-                          value={editCustomCategory}
-                          onChange={(e) => setEditCustomCategory(e.target.value)}
-                          required
-                        />
-                      )}
-                      {editItemImageUrl && <img src={editItemImageUrl} alt="Current" style={{ width: '50px', height: '50px' }} />}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setEditItemImage(e.target.files[0])}
-                      />
-                      <button type="submit">Update</button>
-                      <button type="button" onClick={() => setEditItemId(null)}>Cancel</button>
-                    </form>
-                  ) : (
-                    <>
-                      {item.image && <img src={item.image} alt={item.name} style={{ width: '50px', height: '50px', marginRight: '10px' }} />}
-                      {item.category}: {item.name} - ₹{item.price}
-                      <button onClick={() => handleEditItem(item)}>Edit</button>
-                      <button onClick={() => handleDeleteItem(item._id, true)}>Delete</button>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {error && <p className="error">{error}</p>}
-            {success && <p className="success">{success}</p>}
-          </div>
-        )}
-        {activeTab === 'orders' && (
-          <div className="tab-content">
-            <h2>Pending Orders</h2>
-            <ul className="order-list">
-              {pendingOrders.map((order) => (
-                <li key={order.order_id}>
-                  <p><strong>User:</strong> {order.userName} ({order.userEmail})</p>
-                  <p><strong>Order ID:</strong> {order.order_id}</p>
-                  <p><strong>Status:</strong> {order.status}</p>
-                  <p><strong>Table No:</strong> {order.tableno}</p>
-                  <p><strong>Order Type:</strong> {order.ordertype}</p>
-                  <p><strong>Total Bill:</strong> ₹{order.totalBill}</p>
-                  <p><strong>Date:</strong> {order.date}</p>
-                  <p><strong>Time:</strong> {order.time}</p>
-                  <p><strong>Payment Method:</strong> {order.paymentMethod}</p>
-                  <p><strong>OTP:</strong> {order.otp}</p>
-                  <p><strong>Items:</strong></p>
-                  <ul>
-                    {order.items.map((item, index) => (
-                      <li key={index}>
-                        {item.itemName} - Rate: ₹{item.rate}, Qty: {item.qty}, Total: ₹{item.total}
-                      </li>
+                        {cat} ({cat === 'All' ? universalItems.length : universalItems.filter(i => i.category === cat).length})
+                      </button>
                     ))}
-                  </ul>
-                  {order.ordertype === 'on table' && (
-                    <>
-                      {order.waiterEmail ? (
-                        <p><strong>Assigned to:</strong> {order.waiterEmail}</p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      className="action-btn edit"
+                      onClick={() => handleSelectAllCategory(categoryFilter)}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 700 }}
+                    >
+                      ⚡ Select All {categoryFilter === 'All' ? '' : categoryFilter}
+                    </button>
+                    <button
+                      className="action-btn delete"
+                      onClick={() => handleDeselectAllCategory(categoryFilter)}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 700 }}
+                    >
+                      ✕ Deselect All
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-grid" style={{ marginTop: '0.75rem' }}>
+                {universalItems
+                  .filter(item => categoryFilter === 'All' || item.category === categoryFilter)
+                  .map((item) => {
+                    const isSelected = dailySelections.has(item._id);
+                    return (
+                    <div
+                      key={item._id}
+                      className="admin-item-card"
+                      onClick={() => handleToggleDaily(item._id)}
+                      style={{
+                        cursor: 'pointer',
+                        borderColor: isSelected ? '#a855f7' : 'var(--border)',
+                        boxShadow: isSelected ? '0 0 16px rgba(168, 85, 247, 0.25)' : 'none'
+                      }}
+                    >
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="admin-card-img" />
                       ) : (
-                        <div>
-                          <select
-                            value={selectedWaiters[order.order_id] || ''}
-                            onChange={(e) => setSelectedWaiters({ ...selectedWaiters, [order.order_id]: e.target.value })}
-                          >
-                            <option value="">Select Waiter</option>
-                            {waiters.map((waiter) => (
-                              <option key={waiter._id} value={waiter.email}>
-                                {waiter.email}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => handleAssignOrder(order.order_id, selectedWaiters[order.order_id])}
-                            disabled={!selectedWaiters[order.order_id]}
-                          >
-                            Assign
-                          </button>
-                        </div>
+                        <div className="admin-card-img-placeholder">🍴</div>
                       )}
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {error && <p className="error">{error}</p>}
-            {success && <p className="success">{success}</p>}
+
+                      <div className="admin-card-body">
+                        <span className="admin-card-name">{item.name}</span>
+                        <div className="admin-card-meta">
+                          <span className="admin-card-price">₹{item.price}</span>
+                          <span className="admin-card-cat">{item.category}</span>
+                        </div>
+
+                        <button
+                          className="action-btn"
+                          style={{
+                            marginTop: '0.5rem',
+                            background: isSelected ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'rgba(168, 85, 247, 0.1)',
+                            color: isSelected ? 'white' : 'var(--purple-400)',
+                            border: isSelected ? 'none' : '1px solid rgba(168, 85, 247, 0.3)'
+                          }}
+                        >
+                          {isSelected ? '✓ Active Today' : '+ Add to Today'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Tab 3: Orders */}
+        {activeTab === 'orders' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Filter Pills */}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {['all', 'pending', 'completed'].map(f => (
+                <button
+                  key={f}
+                  onClick={() => setOrdersFilter(f)}
+                  style={{
+                    padding: '0.45rem 1rem',
+                    borderRadius: '999px',
+                    border: ordersFilter === f ? 'none' : '1px solid var(--border)',
+                    background: ordersFilter === f ? 'linear-gradient(135deg, var(--purple-600), var(--purple-700))' : 'var(--bg-card)',
+                    color: ordersFilter === f ? 'white' : 'var(--text-muted)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)} (
+                  {f === 'all' ? pendingOrders.length : pendingOrders.filter(o => o.status === f).length}
+                  )
+                </button>
+              ))}
+            </div>
+
+            <div className="admin-grid">
+              {pendingOrders
+                .filter(order => ordersFilter === 'all' || order.status === ordersFilter)
+                .map((order) => (
+                  <div key={order.order_id} className="admin-item-card" style={{ padding: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontWeight: 800, fontFamily: 'Outfit, sans-serif' }}>{order.order_id}</span>
+                      <span className="admin-card-cat" style={{ textTransform: 'uppercase' }}>{order.status}</span>
+                    </div>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      Customer: {order.userName} ({order.userEmail}) {order.userPhone && `· 📞 ${order.userPhone}`}
+                    </p>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Type: {order.ordertype} {order.tableno && `(Table #${order.tableno})`}</p>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Date & Time: {order.date} · {order.time}</p>
+                    <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--purple-400)', marginTop: '0.2rem' }}>Total: ₹{order.totalBill}</p>
+
+                    {/* Order items */}
+                    <div style={{ background: 'var(--bg-secondary)', padding: '0.5rem', borderRadius: 'var(--radius-sm)', marginTop: '0.4rem', fontSize: '0.78rem' }}>
+                      {order.items?.map((it, idx) => (
+                        <div key={idx}>{it.qty}× {it.itemName} (₹{it.total})</div>
+                      ))}
+                    </div>
+
+                    {order.ordertype === 'on table' && (
+                      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                        {order.waiterEmail ? (
+                          <p style={{ fontSize: '0.8rem', color: '#86efac' }}>Assigned Waiter: {order.waiterEmail}</p>
+                        ) : (
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <select
+                              className="admin-select"
+                              style={{ fontSize: '0.78rem' }}
+                              value={selectedWaiters[order.order_id] || ''}
+                              onChange={(e) => setSelectedWaiters({ ...selectedWaiters, [order.order_id]: e.target.value })}
+                            >
+                              <option value="">Assign Waiter</option>
+                              {waiters.map((w) => (
+                                <option key={w._id} value={w.email}>{w.name ? `${w.name} (${w.email})` : w.email}</option>
+                              ))}
+                            </select>
+                            <button
+                              className="action-btn edit"
+                              onClick={() => handleAssignOrder(order.order_id, selectedWaiters[order.order_id])}
+                              disabled={!selectedWaiters[order.order_id]}
+                            >
+                              Assign
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {order.status !== 'cancelled' && (
+                      <button
+                        className="action-btn delete"
+                        onClick={() => handleCancelOrder(order.order_id)}
+                        style={{ marginTop: '0.6rem', width: '100%', padding: '0.45rem', fontSize: '0.78rem', fontWeight: 700 }}
+                      >
+                        🚫 Cancel Order
+                      </button>
+                    )}
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Staff Management */}
         {activeTab === 'staff' && (
-          <div className="tab-content">
-            <h2>Manage Staff</h2>
-            <h3>Add Superadmin</h3>
-            <form onSubmit={handleAddSuperadmin} className="add-form">
-              <input
-                type="email"
-                placeholder="Superadmin Email"
-                value={newSuperadminEmail}
-                onChange={(e) => setNewSuperadminEmail(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={newSuperadminPassword}
-                onChange={(e) => setNewSuperadminPassword(e.target.value)}
-                required
-              />
-              <button type="submit">Add Superadmin</button>
-            </form>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Superadmin Accounts List */}
+            <div className="admin-form-card">
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>🛡 Active Superadmins ({superadmins.length})</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                {superadmins.map(sa => (
+                  <div key={sa._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', padding: '0.65rem 0.9rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>{sa.email}</span>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <button className="action-btn edit" onClick={() => handleEditSuperadmin(sa)}>Edit</button>
+                      <button className="action-btn delete" onClick={() => handleDeleteSuperadmin(sa._id)}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-            <h3>Existing Superadmins</h3>
-            <ul className="item-list">
-              {superadmins.map((admin) => (
-                <li key={admin._id}>
-                  {admin.email}
-                </li>
+              <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--purple-400)', marginTop: '0.5rem' }}>Add New Superadmin</h4>
+              <form onSubmit={handleAddSuperadmin} className="form-grid" style={{ marginTop: '0.4rem' }}>
+                <input
+                  className="admin-input"
+                  type="email"
+                  placeholder="Superadmin Email"
+                  value={newSuperadminEmail}
+                  onChange={(e) => setNewSuperadminEmail(e.target.value)}
+                  required
+                />
+                <input
+                  className="admin-input"
+                  type="password"
+                  placeholder="Password"
+                  value={newSuperadminPassword}
+                  onChange={(e) => setNewSuperadminPassword(e.target.value)}
+                  required
+                />
+                <button className="admin-submit-btn" type="submit">Add Superadmin</button>
+              </form>
+            </div>
+
+            {/* Waiter Accounts List */}
+            <div className="admin-form-card">
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>👨‍🍳 Active Waiters ({waiters.length})</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                {waiters.map(w => (
+                  <div key={w._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', padding: '0.65rem 0.9rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    <div>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'white', display: 'block' }}>{w.name || 'Waiter'}</span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{w.email}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <button className="action-btn edit" onClick={() => handleEditWaiter(w)}>Edit</button>
+                      <button className="action-btn delete" onClick={() => handleDeleteWaiter(w._id)}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <h4 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--purple-400)', marginTop: '0.5rem' }}>Add New Waiter</h4>
+              <form onSubmit={handleAddWaiter} className="form-grid" style={{ marginTop: '0.4rem' }}>
+                <input
+                  className="admin-input"
+                  type="text"
+                  placeholder="Waiter Full Name (e.g. Ramesh Kumar)"
+                  value={newWaiterName}
+                  onChange={(e) => setNewWaiterName(e.target.value)}
+                  required
+                />
+                <input
+                  className="admin-input"
+                  type="email"
+                  placeholder="Waiter Email"
+                  value={newWaiterEmail}
+                  onChange={(e) => setNewWaiterEmail(e.target.value)}
+                  required
+                />
+                <input
+                  className="admin-input"
+                  type="password"
+                  placeholder="Password"
+                  value={newWaiterPassword}
+                  onChange={(e) => setNewWaiterPassword(e.target.value)}
+                  required
+                />
+                <button className="admin-submit-btn" type="submit">Add Waiter</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 5: Banners & Combos */}
+        {activeTab === 'banners' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div className="admin-form-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Create Promotional Combo Banner</h3>
+                <button
+                  type="button"
+                  className="admin-submit-btn"
+                  onClick={() => setShowComboItemModal(true)}
+                  style={{ width: 'auto', padding: '0.45rem 1rem', fontSize: '0.8rem' }}
+                >
+                  ➕ Select Combo Items ({selectedComboItemIds.length} Selected)
+                </button>
+              </div>
+
+              {/* Selected Combo Items Pills */}
+              {selectedComboItemIds.length > 0 && (
+                <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                  {universalItems.filter(i => selectedComboItemIds.includes(i._id)).map((item) => (
+                    <span
+                      key={item._id}
+                      style={{
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '999px',
+                        background: 'linear-gradient(135deg, #a855f7, #7e22ce)',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      {item.name} (₹{item.price})
+                      <button
+                        type="button"
+                        onClick={() => handleToggleComboItem(item)}
+                        style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.85rem' }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  <div style={{ width: '100%', marginTop: '0.25rem', fontSize: '0.8rem', color: '#c084fc', fontWeight: 700 }}>
+                    Combined Original Value: ₹{getComboOriginalPrice(selectedComboItemIds)}
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleAddBanner} className="form-grid">
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Banner Title</label>
+                  <input
+                    className="admin-input"
+                    type="text"
+                    placeholder="e.g. Masala Dosa + Cold Coffee"
+                    value={newBannerTitle}
+                    onChange={(e) => setNewBannerTitle(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Badge Tag</label>
+                  <input
+                    className="admin-input"
+                    type="text"
+                    placeholder="e.g. 🔥 TODAY'S COMBO"
+                    value={newBannerTag}
+                    onChange={(e) => setNewBannerTag(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+                    Discount Percentage (% - Default 0%)
+                  </label>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="0"
+                    value={newBannerDiscount}
+                    onChange={(e) => handleDiscountPercentChange(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+                    Final Offer Price (₹ - Auto Calculates Discount %)
+                  </label>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    placeholder="e.g. 120"
+                    value={newBannerPrice}
+                    onChange={(e) => handleFinalPriceChange(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Generated Subtitle Offer Text</label>
+                  <input
+                    className="admin-input"
+                    type="text"
+                    placeholder="e.g. Combo Offer @ ₹120 (15% OFF, Save ₹20)"
+                    value={newBannerSubtitle}
+                    onChange={(e) => setNewBannerSubtitle(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'white', fontWeight: 700 }}>
+                    🖼️ Banner Image Manager (Choose Preset, Paste URL, or Upload File)
+                  </label>
+
+                  {/* Preset Food Image Gallery */}
+                  <div>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.35rem' }}>
+                      Quick 1-Click HD Food Artwork Presets:
+                    </span>
+                    <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
+                      {FOOD_IMAGE_PRESETS.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => { setNewBannerImageUrl(preset.url); setNewBannerImage(null); }}
+                          style={{
+                            padding: '0.3rem 0.65rem',
+                            borderRadius: '999px',
+                            border: newBannerImageUrl === preset.url ? 'none' : '1px solid var(--border)',
+                            background: newBannerImageUrl === preset.url ? 'linear-gradient(135deg, var(--purple-600), var(--purple-700))' : 'var(--bg-card)',
+                            color: newBannerImageUrl === preset.url ? 'white' : 'var(--text-muted)',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <input
+                      className="admin-input"
+                      type="url"
+                      placeholder="Or paste banner image URL (https://...)"
+                      value={newBannerImageUrl}
+                      onChange={(e) => setNewBannerImageUrl(e.target.value)}
+                      style={{ flex: 2, minWidth: '200px' }}
+                    />
+                    <input
+                      className="admin-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => { setNewBannerImage(e.target.files[0]); setNewBannerImageUrl(''); }}
+                      style={{ flex: 1, minWidth: '160px' }}
+                    />
+                  </div>
+
+                  {newBannerImageUrl && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.2rem' }}>
+                      <img src={newBannerImageUrl} alt="Preview" style={{ width: '60px', height: '40px', borderRadius: '6px', objectFit: 'cover' }} />
+                      <span style={{ fontSize: '0.72rem', color: '#4ade80', fontWeight: 600 }}>Selected Preset / URL active</span>
+                    </div>
+                  )}
+                </div>
+
+                <button className="admin-submit-btn" type="submit" style={{ gridColumn: '1 / -1' }}>
+                  + Create Promotional Combo Banner
+                </button>
+              </form>
+            </div>
+
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Active Combo Banners ({banners.length})</h3>
+            <div className="admin-grid">
+              {banners.map((b) => (
+                <div key={b._id} className="admin-item-card" style={{ padding: '0.75rem' }}>
+                  {b.image ? (
+                    <img src={b.image} alt={b.title} className="admin-card-img" style={{ height: '140px', objectFit: 'cover' }} />
+                  ) : (
+                    <div className="admin-card-img-placeholder" style={{ height: '140px' }}>🎠</div>
+                  )}
+
+                  <div className="admin-card-body" style={{ marginTop: '0.5rem' }}>
+                    <span className="admin-card-cat" style={{ alignSelf: 'flex-start', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>
+                      {b.tag || "SPECIAL COMBO"}
+                    </span>
+                    <span className="admin-card-name" style={{ fontSize: '0.95rem', fontWeight: 800, marginTop: '0.2rem' }}>{b.title}</span>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{b.subtitle}</p>
+
+                    <div className="admin-card-actions" style={{ marginTop: '0.75rem' }}>
+                      <button
+                        className="action-btn edit"
+                        onClick={() => handleToggleBanner(b)}
+                        style={{ background: b.active ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)', color: b.active ? '#4ade80' : '#fca5a5' }}
+                      >
+                        {b.active ? '🟢 Active' : '🔴 Hidden'}
+                      </button>
+                      <button className="action-btn delete" onClick={() => handleDeleteBanner(b._id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ))}
-            </ul>
-
-            <h3>Add Waiter</h3>
-            <form onSubmit={handleAddWaiter} className="add-form">
-              <input
-                type="email"
-                placeholder="Waiter Email"
-                value={newWaiterEmail}
-                onChange={(e) => setNewWaiterEmail(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                placeholder="Password"
-                value={newWaiterPassword}
-                onChange={(e) => setNewWaiterPassword(e.target.value)}
-                required
-              />
-              <button type="submit">Add Waiter</button>
-            </form>
-
-            <h3>Existing Waiters</h3>
-            <ul className="item-list">
-              {waiters.map((waiter) => (
-                <li key={waiter._id}>
-                  {waiter.email}
-                </li>
-              ))}
-            </ul>
-
-            {error && <p className="error">{error}</p>}
-            {success && <p className="success">{success}</p>}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Edit Item Glassmorphic Modal Popup */}
+      {editItemId && (
+        <div className="payment-success-overlay" onClick={() => setEditItemId(null)}>
+          <div className="payment-success-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', textAlign: 'left', alignItems: 'stretch' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'white' }}>✏️ Edit Menu Item</h3>
+              <button
+                type="button"
+                onClick={() => setEditItemId(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={(e) => handleUpdateItem(e, false)} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Item Name</label>
+                <input
+                  className="admin-input"
+                  type="text"
+                  value={editItemName}
+                  onChange={(e) => setEditItemName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Price (₹)</label>
+                <input
+                  className="admin-input"
+                  type="number"
+                  value={editItemPrice}
+                  onChange={(e) => setEditItemPrice(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Category</label>
+                <select
+                  className="admin-select"
+                  value={editSelectedCategory}
+                  onChange={(e) => setEditSelectedCategory(e.target.value)}
+                >
+                  {categories.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                  <option value="Custom">Custom</option>
+                </select>
+              </div>
+
+              {editSelectedCategory === 'Custom' && (
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Custom Category Name</label>
+                  <input
+                    className="admin-input"
+                    type="text"
+                    value={editCustomCategory}
+                    onChange={(e) => setEditCustomCategory(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Update Image (Optional)</label>
+                <input
+                  className="admin-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setEditItemImage(e.target.files[0])}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem' }}>
+                <button type="submit" className="view-orders-btn" style={{ flex: 1 }}>
+                  💾 Save Changes
+                </button>
+                <button type="button" className="done-btn" onClick={() => setEditItemId(null)} style={{ width: 'auto', padding: '0.75rem 1.2rem' }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Combo Item Picker Pop-up Modal */}
+      {showComboItemModal && (
+        <div className="payment-success-overlay" onClick={() => setShowComboItemModal(false)}>
+          <div
+            className="payment-success-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '540px', width: '92%', textAlign: 'left', alignItems: 'stretch' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'white' }}>🍔 Select Items for Combo</h3>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Choose items from your menu categories below</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowComboItemModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Category Sort Chips inside Modal */}
+            <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.4rem', marginBottom: '0.85rem' }}>
+              {uniqueCategories.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setComboModalCategory(cat)}
+                  style={{
+                    padding: '0.35rem 0.8rem',
+                    borderRadius: '999px',
+                    border: comboModalCategory === cat ? 'none' : '1px solid var(--border)',
+                    background: comboModalCategory === cat ? 'linear-gradient(135deg, var(--purple-600), var(--purple-700))' : 'var(--bg-card)',
+                    color: comboModalCategory === cat ? 'white' : 'var(--text-muted)',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {cat} ({cat === 'All' ? universalItems.length : universalItems.filter(i => i.category === cat).length})
+                </button>
+              ))}
+            </div>
+
+            {/* Items Grid inside Modal */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: '0.6rem', maxHeight: '280px', overflowY: 'auto', paddingRight: '0.2rem' }}>
+              {universalItems
+                .filter(item => comboModalCategory === 'All' || item.category === comboModalCategory)
+                .map((item) => {
+                  const isSelected = selectedComboItemIds.includes(item._id);
+                  return (
+                    <div
+                      key={item._id}
+                      onClick={() => handleToggleComboItem(item)}
+                      style={{
+                        padding: '0.65rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: isSelected ? '1px solid #a855f7' : '1px solid var(--border)',
+                        background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'var(--bg-secondary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '0.35rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.name}
+                      </span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.78rem', color: '#c084fc', fontWeight: 800 }}>₹{item.price}</span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: isSelected ? '#4ade80' : 'var(--text-muted)' }}>
+                          {isSelected ? '✓ Added' : '+ Add'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                {selectedComboItemIds.length} items selected (₹{getComboOriginalPrice(selectedComboItemIds)})
+              </span>
+              <button
+                type="button"
+                className="view-orders-btn"
+                onClick={() => setShowComboItemModal(false)}
+                style={{ padding: '0.5rem 1.2rem', fontSize: '0.82rem' }}
+              >
+                Done Selecting
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

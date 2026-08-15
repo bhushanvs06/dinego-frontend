@@ -1,364 +1,580 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Home, Clock, Mic, ShoppingCart, User } from "lucide-react";
+import { Home, Clock, Mic, ShoppingCart, User, Search, LogOut } from "lucide-react";
+import { API_URL } from "../../config";
 import "./Home.css";
+
+const CATEGORY_EMOJI = {
+  Breakfast: "🌅",
+  LunchSpecials: "🍱",
+  SnacksFastFood: "🍔",
+  Beverages: "🥤",
+  Desserts: "🍰",
+};
+
+const ComboSlider = ({ banners, onAddCombo }) => {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const activeBanners = banners.filter(b => b.active !== false);
+
+  useEffect(() => {
+    if (activeBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentIdx((prev) => (prev + 1) % activeBanners.length);
+    }, 3800);
+    return () => clearInterval(timer);
+  }, [activeBanners.length]);
+
+  if (activeBanners.length === 0) return null;
+
+  const current = activeBanners[currentIdx];
+
+  return (
+    <div className="zomato-combo-slider">
+      <div className="combo-banner-slide" key={current._id || currentIdx}>
+        {current.image ? (
+          <img
+            src={current.image}
+            alt={current.title}
+            className="combo-banner-bg"
+            onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80"; }}
+          />
+        ) : (
+          <div className="combo-banner-bg-fallback" />
+        )}
+        <div className="combo-banner-overlay">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+            <span className="combo-tag-pill">{current.tag || "🔥 SPECIAL COMBO"}</span>
+            {current.comboItems && current.comboItems.length > 0 && (
+              <button
+                className="add-combo-btn"
+                onClick={() => onAddCombo(current)}
+              >
+                🛒 Add Combo {current.price ? `@ ₹${current.price}` : ''}
+              </button>
+            )}
+          </div>
+          <h3 className="combo-title">{current.title}</h3>
+          {current.subtitle && <p className="combo-sub">{current.subtitle}</p>}
+        </div>
+      </div>
+
+      {activeBanners.length > 1 && (
+        <div className="combo-dots">
+          {activeBanners.map((_, i) => (
+            <span
+              key={i}
+              className={`combo-dot ${i === currentIdx ? "active" : ""}`}
+              onClick={() => setCurrentIdx(i)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [cart, setCart] = useState([]);
   const [menu, setMenu] = useState({});
+  const [banners, setBanners] = useState([]);
   const [activeTab, setActiveTab] = useState("home");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [error, setError] = useState("");
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    const email = localStorage.getItem('email');
-    if (!email) {
-      navigate('/login');
-      return;
-    }
+    const email = localStorage.getItem("email");
+    if (!email) { navigate("/login"); return; }
     fetchMenu();
     fetchCart();
+    fetchBanners();
   }, []);
+
+  const fetchBanners = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/banners`);
+      const data = await res.json();
+      setBanners(data);
+    } catch { /* silence */ }
+  };
 
   const fetchMenu = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/daily-items');
+      const response = await fetch(`${API_URL}/api/daily-items`);
       const data = await response.json();
       const grouped = data.reduce((acc, item) => {
-        if (!acc[item.category]) acc[item.category] = [];
-        acc[item.category].push({
-          name: item.name,
-          price: item.price,
-          type: item.itemType,
-          image: item.image
-        });
+        const cat = item.category || "General";
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push({ name: item.name, price: item.price, type: item.itemType, image: item.image });
         return acc;
       }, {});
       setMenu(grouped);
-    } catch (err) {
-      setError('Failed to fetch menu');
-    }
+    } catch { setError("Failed to load menu"); }
   };
 
   const fetchCart = async () => {
-    const email = localStorage.getItem('email');
+    const email = localStorage.getItem("email");
+    if (!email) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/user/cart?email=${encodeURIComponent(email)}`);
-      if (!response.ok) throw new Error('Failed to fetch cart');
-      const data = await response.json();
-      const formatted = data.map(item => ({
-        name: item.itemName,
-        price: item.rate,
-        quantity: item.qty,
-        type: 'veg'
-      }));
-      setCart(formatted);
-    } catch (err) {
-      setError('Failed to fetch cart: ' + err.message);
-    }
+      const r = await fetch(`${API_URL}/api/user/cart?email=${encodeURIComponent(email)}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      setCart(data.map((i) => ({ name: i.itemName, price: i.rate, quantity: i.qty, type: "veg" })));
+    } catch { /* silence */ }
   };
 
-  const updateBackendCart = async (newCart) => {
-    const email = localStorage.getItem('email');
-    const backendCart = newCart.map(item => ({
-      itemName: item.name,
-      rate: item.price,
-      qty: item.quantity,
-      total: item.price * item.quantity
-    }));
+  const syncCart = async (newCart) => {
+    const email = localStorage.getItem("email");
+    if (!email) return;
     try {
-      const response = await fetch('http://localhost:5000/api/user/cart', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, cart: backendCart })
+      await fetch(`${API_URL}/api/user/cart`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, cart: newCart.map((i) => ({ itemName: i.name, rate: i.price, qty: i.quantity, total: i.price * i.quantity })) }),
       });
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.message || 'Failed to update cart');
-      }
-    } catch (err) {
-      setError('Failed to update cart: ' + err.message);
-    }
+    } catch { /* silence */ }
   };
 
-  // Add to cart
   const addToCart = (item) => {
-    setError('');
+    setError("");
     const existing = cart.find((i) => i.name === item.name);
-    let newCart;
-    if (existing) {
-      newCart = cart.map((i) =>
-        i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i
-      );
-    } else {
-      newCart = [...cart, { ...item, quantity: 1 }];
-    }
+    const newCart = existing
+      ? cart.map((i) => (i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i))
+      : [...cart, { ...item, quantity: 1 }];
     setCart(newCart);
-    updateBackendCart(newCart);
+    syncCart(newCart);
   };
 
-  // Increase quantity
   const increaseQty = (item) => {
-    setError('');
-    const newCart = cart.map((i) =>
-      i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i
-    );
+    const newCart = cart.map((i) => (i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i));
     setCart(newCart);
-    updateBackendCart(newCart);
+    syncCart(newCart);
   };
 
-  // Decrease quantity
   const decreaseQty = (item) => {
-    setError('');
     const newCart = cart
-      .map((i) =>
-        i.name === item.name ? { ...i, quantity: i.quantity - 1 } : i
-      )
+      .map((i) => (i.name === item.name ? { ...i, quantity: i.quantity - 1 } : i))
       .filter((i) => i.quantity > 0);
     setCart(newCart);
-    updateBackendCart(newCart);
+    syncCart(newCart);
   };
 
-  // Logout
   const handleLogout = () => {
-    localStorage.removeItem('email');
-    localStorage.removeItem('token'); // If token is also stored
-    navigate('/login');
+    localStorage.removeItem("email");
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
-  // Navigate to cart page
-  const handleViewCart = () => {
-    navigate("/user-dashboard/cart");
-  };
-
-  // Voice Order
   const handleVoiceOrder = () => {
     setActiveTab("mic");
-
-    if (!("webkitSpeechRecognition" in window)) {
-      alert("Speech Recognition not supported in this browser.");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech Recognition is not supported in this browser.");
       return;
     }
 
-    if (!recognitionRef.current) {
-      recognitionRef.current = new window.webkitSpeechRecognition();
-      recognitionRef.current.lang = "en-IN";
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-
-      recognitionRef.current.onstart = () => setIsListening(true);
-
-      recognitionRef.current.onresult = async (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log("User said:", transcript);
-
-        try {
-          // Send transcript to your backend (which uses Sarvam API)
-          const response = await fetch("http://localhost:5000/api/voiceorder", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ query: transcript }),
-          });
-         
-          // Check for non-OK response from server (e.g., the 500 error from failed JSON parsing)
-          if (!response.ok) {
-              const errorData = await response.json();
-              console.error("Server voice order error:", errorData);
-              alert(errorData.error || "Server error occurred during voice processing.");
-              setIsListening(false);
-              return;
-          }
-
-          const data = await response.json();
-
-          if (data.items && data.items.length > 0) {
-            // The AI returns objects like {name: "Poha", quantity: 1, price: 35}
-            const itemsFromAI = data.items;
-            const updatedCartItems = [];
-
-            itemsFromAI.forEach((itemFromAI) => {
-              let foundItem = null;
-
-              // Find the corresponding item object in the local menu data
-              const allMenuItems = Object.values(menu).flat();
-              const localItem = allMenuItems.find(
-                (menuItem) => menuItem.name.toLowerCase() === itemFromAI.name.toLowerCase()
-              );
-
-              if (localItem) {
-                // Use local menu data (price, type) but override quantity with AI's inferred quantity
-                foundItem = {
-                  ...localItem,
-                  quantity: itemFromAI.quantity && typeof itemFromAI.quantity === 'number' && itemFromAI.quantity > 0 ? itemFromAI.quantity : 1,
-                };
-              }
-
-              if (foundItem) {
-                updatedCartItems.push(foundItem);
-              }
-            });
-
-            if (updatedCartItems.length > 0) {
-              // Merge matched items with existing cart: add new items, or add quantity to existing items
-              const finalCart = [...cart];
-             
-              updatedCartItems.forEach((item) => {
-                const existingIndex = finalCart.findIndex((i) => i.name === item.name);
-                if (existingIndex === -1) {
-                  // Item is new, add it to the cart
-                  finalCart.push(item);
-                } else {
-                  // Item exists, increase its quantity by the amount determined by the AI
-                  finalCart[existingIndex].quantity += item.quantity;
-                }
-              });
-
-              setCart(finalCart);
-              updateBackendCart(finalCart);
-              navigate("/user-dashboard/cart");
-            } else {
-              alert("The AI couldn't find any matching food items from your voice command.");
-            }
-          } else {
-            alert("Could not understand your order.");
-          }
-        } catch (error) {
-          console.error("Error:", error);
-          alert("Voice order failed. Try again!");
-        }
-
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onerror = (err) => {
-        console.error("Speech recognition error:", err);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onend = () => setIsListening(false);
+    // Toggle off if already listening
+    if (isListening) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+      setIsListening(false);
+      return;
     }
 
-    recognitionRef.current.start();
+    // Create fresh instance per request to prevent browser loop bugs
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = "en-IN";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    let finalTranscript = "";
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onresult = (event) => {
+      let currentTranscript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        currentTranscript += event.results[i][0].transcript;
+      }
+      finalTranscript = currentTranscript;
+    };
+
+    recognition.onerror = (err) => {
+      console.error("Speech recognition error:", err);
+      setIsListening(false);
+    };
+
+    recognition.onend = async () => {
+      setIsListening(false);
+      const textToProcess = finalTranscript.trim();
+      if (!textToProcess) return;
+
+      console.log("Speaking completed. Processing transcript:", textToProcess);
+
+      try {
+        const response = await fetch(`${API_URL}/api/voiceorder`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: textToProcess }),
+        });
+        if (!response.ok) {
+          const e = await response.json();
+          alert(e.error || "Server error processing voice order.");
+          return;
+        }
+        const data = await response.json();
+        let itemsAddedCount = 0;
+
+        if (data.items && data.items.length > 0) {
+          const allMenuItems = Object.values(menu).flat();
+          const finalCart = [...cart];
+          data.items.forEach((ai) => {
+            const local = allMenuItems.find((m) => m.name.toLowerCase() === ai.name.toLowerCase());
+            if (local) {
+              const idx = finalCart.findIndex((i) => i.name === local.name);
+              const qty = ai.quantity > 0 ? ai.quantity : 1;
+              if (idx === -1) finalCart.push({ ...local, quantity: qty });
+              else finalCart[idx].quantity += qty;
+              itemsAddedCount++;
+            }
+          });
+
+          if (itemsAddedCount > 0) {
+            setCart(finalCart);
+            await syncCart(finalCart);
+            navigate("/user-dashboard/cart");
+          } else {
+            alert(`No matching menu items found for: "${textToProcess}"`);
+          }
+        } else {
+          alert(`No matching items found for: "${textToProcess}"`);
+        }
+      } catch (err) {
+        console.error("Voice order error:", err);
+        alert("Voice order failed. Please try again!");
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      setIsListening(false);
+    }
   };
 
-  // Filtered menu based on search
-  const filteredMenu = Object.entries(menu).reduce((acc, [category, items]) => {
-    const filteredItems = items.filter(item =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    if (filteredItems.length > 0) {
-      acc[category] = filteredItems;
-    }
+  const activeBanners = (banners || []).filter(b => b && b.active !== false);
+
+  const toggleCategoryExpand = (cat) => {
+    setExpandedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const filteredMenu = Object.entries(menu).reduce((acc, [cat, items]) => {
+    if (selectedCategory !== "All" && cat !== selectedCategory) return acc;
+    const filtered = items.filter((i) => i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    if (filtered.length > 0) acc[cat] = filtered;
     return acc;
   }, {});
 
+  const handleAddCombo = async (banner) => {
+    const comboName = banner.title;
+    const comboPrice = Number(banner.price) || (banner.comboItems ? banner.comboItems.reduce((s, i) => s + (Number(i.rate) * (i.qty || 1)), 0) : 0);
+    if (!comboPrice) return;
+
+    let newCart = [...cart];
+    const existing = newCart.find(i => i.name === comboName);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      newCart.push({ name: comboName, price: comboPrice, quantity: 1, type: 'veg' });
+    }
+    setCart(newCart);
+    await syncCart(newCart);
+  };
+
+  const totalCartItems = cart.reduce((s, i) => s + i.quantity, 0);
+  const totalCartPrice = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+
   return (
     <div className="home">
+      {/* Header */}
       <header className="header">
-        <h1>DineGo</h1>
-        <button onClick={handleLogout} className="logout-button">Logout</button>
+        <div className="header-brand">
+          <span className="emoji">🍽</span>
+          <h1>DineGo</h1>
+        </div>
+        <button className="logout-button" onClick={handleLogout} id="logout-btn">
+          <LogOut size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+          Logout
+        </button>
       </header>
 
-      <div className="search-bar">
-        <input
-          type="text"
-          placeholder="Search your food..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      {/* Search */}
+      <div className="search-wrapper">
+        <div className="search-bar">
+          <Search size={16} className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search dishes, snacks, drinks…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            id="search-input"
+          />
+          <button
+            className={`search-mic-btn${isListening ? ' listening' : ''}`}
+            onClick={handleVoiceOrder}
+            title="Voice Search & Order"
+          >
+            <Mic size={16} />
+          </button>
+        </div>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {/* Zomato-Style Featured Promotional Combo Slider */}
+      <ComboSlider banners={banners} onAddCombo={handleAddCombo} />
 
-      {Object.entries(filteredMenu).map(([category, items]) => (
-        <section className="section" key={category}>
-          <h2>{category.replace(/([A-Z])/g, " $1").trim()}</h2>
-          <div className="grid">
-            {items.map((item, index) => {
-              const inCart = cart.find((i) => i.name === item.name);
-              return (
-                <div className="card" key={index}>
-                  {item.image && <img src={item.image} alt={item.name} style={{ width: '100%', height: 'auto', maxHeight: '120px', objectFit: 'cover', borderRadius: '8px 8px 0 0' }} />}
-                  <div className="card-content">
-                    <h3>{item.name}</h3>
-                    <p>₹{item.price}</p>
-                    <span className={`type ${item.type}`}>{item.type.toUpperCase()}</span>
-                  </div>
-                  {!inCart ? (
-                    <button className="add-button" onClick={() => addToCart(item)}>Add to Cart</button>
-                  ) : (
-                    <div className="qty-controls">
-                      <button onClick={() => decreaseQty(item)}>-</button>
-                      <span>{inCart.quantity}</span>
-                      <button onClick={() => increaseQty(item)}>+</button>
+      {/* Category Filter Chips Bar */}
+      {Object.keys(menu).length > 0 && (
+        <div className="customer-category-bar">
+          <button
+            className={`cat-chip ${selectedCategory === 'All' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('All')}
+          >
+            All Items ({Object.values(menu).flat().length + activeBanners.length})
+          </button>
+          {activeBanners.length > 0 && (
+            <button
+              className={`cat-chip ${selectedCategory === 'Combos' ? 'active' : ''}`}
+              onClick={() => setSelectedCategory('Combos')}
+            >
+              <span>🔥</span>
+              <span>Special Combos ({activeBanners.length})</span>
+            </button>
+          )}
+          {Object.entries(menu).map(([cat, items]) => (
+            <button
+              key={cat}
+              className={`cat-chip ${selectedCategory === cat ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              <span>{CATEGORY_EMOJI[cat] || '🍴'}</span>
+              <span>{cat.replace(/([A-Z])/g, " $1").trim()} ({items.length})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {error && <div className="error-banner">{error}</div>}
+
+      {/* Menu & Combos */}
+      <div className="menu-content">
+        {/* Combos Section (shown on 'Combos' tab or 'All' tab) */}
+        {(selectedCategory === 'Combos' || selectedCategory === 'All') && activeBanners.length > 0 && (
+          <section className="section" key="Combos">
+            <div className="section-header">
+              <span style={{ fontSize: '1.2rem' }}>🔥</span>
+              <span className="section-title">Special Combo Packs</span>
+              <span className="section-count">{activeBanners.length} combos</span>
+            </div>
+
+            <div className="grid">
+              {(expandedCategories['Combos'] ? activeBanners : activeBanners.slice(0, 4)).map((banner, index) => {
+                const inCart = cart.find((i) => i.name === banner.title);
+                return (
+                  <div className="card combo-card-item" key={banner._id || index}>
+                    <div className="card-image-wrapper">
+                      {banner.image ? (
+                        <img src={banner.image} alt={banner.title} loading="lazy" />
+                      ) : (
+                        <div className="card-image-placeholder">🎠</div>
+                      )}
+                      <div className="card-badge veg" style={{ background: 'linear-gradient(135deg, #f97316, #ec4899)' }}>
+                        {banner.tag || "SPECIAL COMBO"}
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
 
+                    <div className="card-body">
+                      <span className="card-name">{banner.title}</span>
+                      <span className="combo-card-sub">{banner.subtitle}</span>
+                      {!inCart ? (
+                        <button className="add-button combo-add-btn" onClick={() => handleAddCombo(banner)}>
+                          🛒 Add Combo {banner.price ? `@ ₹${banner.price}` : ''}
+                        </button>
+                      ) : (
+                        <div className="qty-controls">
+                          <button className="qty-btn" onClick={() => decreaseQty({ name: banner.title })}>−</button>
+                          <span className="qty-value">{inCart.quantity}</span>
+                          <button className="qty-btn" onClick={() => increaseQty({ name: banner.title })}>+</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {activeBanners.length > 4 && (
+              <button
+                className="show-more-btn"
+                onClick={() => toggleCategoryExpand('Combos')}
+              >
+                {expandedCategories['Combos'] ? '▲ Show Less' : `▼ Show More (${activeBanners.length - 4} more combos)`}
+              </button>
+            )}
+          </section>
+        )}
+
+        {/* Regular Menu Categories */}
+        {selectedCategory !== 'Combos' && Object.keys(filteredMenu).length === 0 && activeBanners.length === 0 ? (
+          <div className="empty-state">
+            <span>🍽</span>
+            <p>{searchQuery ? "No items found for your search" : "No menu items available"}</p>
+          </div>
+        ) : (
+          selectedCategory !== 'Combos' && Object.entries(filteredMenu).map(([category, items]) => {
+            const isExpanded = expandedCategories[category];
+            const visibleItems = isExpanded ? items : items.slice(0, 4);
+            const hasMore = items.length > 4;
+
+            return (
+              <section className="section" key={category}>
+                <div className="section-header">
+                  <span style={{ fontSize: '1.2rem' }}>{CATEGORY_EMOJI[category] || '🍴'}</span>
+                  <span className="section-title">{category.replace(/([A-Z])/g, " $1").trim()}</span>
+                  <span className="section-count">{items.length} items</span>
+                </div>
+
+                <div className="grid">
+                  {visibleItems.map((item, index) => {
+                    const inCart = cart.find((i) => i.name === item.name);
+                    return (
+                      <div className="card" key={index}>
+                        <div className="card-image-wrapper">
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              loading="lazy"
+                              onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&q=80"; }}
+                            />
+                          ) : (
+                            <div className="card-image-placeholder">
+                              {CATEGORY_EMOJI[category] || "🍴"}
+                            </div>
+                          )}
+                          <div className={`card-badge ${item.type === 'veg' ? 'veg' : 'nonveg'}`}>
+                            <span className="veg-dot" />
+                            {item.type === 'veg' ? 'VEG' : 'NON-VEG'}
+                          </div>
+                        </div>
+
+                        <div className="card-body">
+                          <span className="card-name">{item.name}</span>
+                          <span className="card-price">₹{item.price}</span>
+                          {!inCart ? (
+                            <button className="add-button" onClick={() => addToCart(item)}>
+                              + Add
+                            </button>
+                          ) : (
+                            <div className="qty-controls">
+                              <button className="qty-btn" onClick={() => decreaseQty(item)}>−</button>
+                              <span className="qty-value">{inCart.quantity}</span>
+                              <button className="qty-btn" onClick={() => increaseQty(item)}>+</button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {hasMore && (
+                  <button
+                    className="show-more-btn"
+                    onClick={() => toggleCategoryExpand(category)}
+                  >
+                    {isExpanded ? '▲ Show Less' : `▼ Show More (${items.length - 4} more items)`}
+                  </button>
+                )}
+              </section>
+            );
+          })
+        )}
+      </div>
+
+      {/* Voice Listening Modal */}
+      {isListening && (
+        <div className="voice-listening-overlay">
+          <div className="voice-listening-modal">
+            <div className="voice-mic-ripple-wrap">
+              <div className="ripple-ring r1"></div>
+              <div className="ripple-ring r2"></div>
+              <div className="ripple-ring r3"></div>
+              <div className="voice-mic-circle">
+                <Mic size={36} color="white" className="mic-glow-icon" />
+              </div>
+            </div>
+
+            <div className="wave-bars">
+              <div className="wave-bar"></div>
+              <div className="wave-bar"></div>
+              <div className="wave-bar"></div>
+              <div className="wave-bar"></div>
+              <div className="wave-bar"></div>
+              <div className="wave-bar"></div>
+              <div className="wave-bar"></div>
+            </div>
+
+            <h3 className="listening-title">Listening to your order…</h3>
+            <p className="listening-sub">Speak naturally e.g. <em>"Add 2 Masala Dosa and 1 Cold Coffee"</em></p>
+            <button className="cancel-voice-btn" onClick={handleVoiceOrder}>
+              ✓ Done Speaking / Stop
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Cart Bar */}
       {cart.length > 0 && (
         <div className="bottom-cart">
-          <p>{cart.reduce((sum, item) => sum + item.quantity, 0)} item(s) added</p>
-          <button onClick={handleViewCart}>View Cart</button>
+          <div className="bottom-cart-info">
+            <span className="bottom-cart-count">{totalCartItems} item{totalCartItems > 1 ? 's' : ''} in cart</span>
+            <span className="bottom-cart-total">₹{totalCartPrice.toFixed(0)}</span>
+          </div>
+          <button className="view-cart-btn" onClick={() => navigate("/user-dashboard/cart")} id="view-cart-btn">
+            View Cart →
+          </button>
         </div>
       )}
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav">
-        <button
-          onClick={() => {
-            setActiveTab("home");
-            navigate("/home");
-          }}
-          className={activeTab === "home" ? "active" : ""}
-        >
-          <Home size={22} />
+        <button className={`nav-btn${activeTab === 'home' ? ' active' : ''}`} onClick={() => { setActiveTab('home'); navigate('/user-dashboard'); }}>
+          <Home size={20} className="nav-icon" />
           <span>Home</span>
         </button>
-
-        <button
-          onClick={() => {
-            setActiveTab("orders");
-            navigate("/user-dashboard/orders");
-          }}
-          className={activeTab === "orders" ? "active" : ""}
-        >
-          <Clock size={22} />
+        <button className={`nav-btn${activeTab === 'orders' ? ' active' : ''}`} onClick={() => { setActiveTab('orders'); navigate('/user-dashboard/orders'); }}>
+          <Clock size={20} className="nav-icon" />
           <span>Orders</span>
         </button>
-
-        <button
-          onClick={handleVoiceOrder}
-          className={activeTab === "mic" ? "active mic" : "mic"}
-        >
-          <Mic size={24} color={isListening ? "red" : "white"} />
-        </button>
-
-        <button
-          onClick={handleViewCart}
-          className={activeTab === "cart" ? "active" : ""}
-        >
-          <ShoppingCart size={22} />
+        <div className="mic-nav-wrapper">
+          <button className={`nav-btn mic-btn${isListening ? ' listening' : ''}`} onClick={handleVoiceOrder} id="mic-btn" title="Voice Order">
+            <Mic size={22} />
+          </button>
+          <span className="mic-nav-label">Voice</span>
+        </div>
+        <button className={`nav-btn${activeTab === 'cart' ? ' active' : ''}`} onClick={() => { setActiveTab('cart'); navigate('/user-dashboard/cart'); }}>
+          <ShoppingCart size={20} className="nav-icon" />
           <span>Cart</span>
         </button>
-
-        <button
-          onClick={() => {
-            setActiveTab("account");
-            navigate("/user-dashboard/account");
-          }}
-          className={activeTab === "account" ? "active" : ""}
-        >
-          <User size={22} />
+        <button className={`nav-btn${activeTab === 'account' ? ' active' : ''}`} onClick={() => { setActiveTab('account'); navigate('/user-dashboard/account'); }}>
+          <User size={20} className="nav-icon" />
           <span>Account</span>
         </button>
       </nav>

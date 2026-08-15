@@ -1,23 +1,31 @@
 // src/components/Login.jsx
 import React, { useState } from 'react';
-import './Login.css'; // Import the CSS file
+import './Login.css';
 import { useNavigate } from 'react-router-dom';
+
+const ROLES = [
+  { value: 'user', label: 'Customer' },
+  { value: 'waiter', label: 'Waiter' },
+  { value: 'superadmin', label: 'Admin' },
+];
+
+import { API_URL } from '../config';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState('user'); // Default to normal user
+  const [role, setRole] = useState('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState(''); // For signup
-  const [phone, setPhone] = useState(''); // For signup
-  const [isSignup, setIsSignup] = useState(false); // Toggle between login and signup for users
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loggedInRole, setLoggedInRole] = useState(null); // To simulate loading test component
+  const [loading, setLoading] = useState(false);
 
-  const handleRoleChange = (e) => {
-    setRole(e.target.value);
-    setIsSignup(false); // Reset signup mode when changing role
+  const handleRoleChange = (r) => {
+    setRole(r);
+    setIsSignup(false);
     setError('');
     setSuccess('');
   };
@@ -26,6 +34,7 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setLoading(true);
 
     try {
       let endpoint = '';
@@ -44,7 +53,7 @@ const Login = () => {
         endpoint = '/api/login/superadmin';
       }
 
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -52,104 +61,120 @@ const Login = () => {
 
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Login/Signup failed');
-      }
+      if (!response.ok) throw new Error(data.message || 'Authentication failed');
 
-      if (role === 'user') {
-        localStorage.setItem('email', email);
+      if (role === 'user') localStorage.setItem('email', email);
+      if (role === 'waiter') {
+        localStorage.setItem('waiterEmail', email);
+        if (data.name) localStorage.setItem('waiterName', data.name);
       }
+      if (role === 'superadmin') localStorage.setItem('adminEmail', email);
 
-      setSuccess(`Logged in as ${role}`);
-      setLoggedInRole(role); // Simulate loading the test component
+      setSuccess(`Welcome back!`);
+
+      setTimeout(() => {
+        if (role === 'waiter') navigate('/waiter-test');
+        else if (role === 'superadmin') navigate('/superadmin-test');
+        else navigate('/user-dashboard');
+      }, 500);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Test components rendered conditionally for simplicity (without router)
-  if (loggedInRole === 'waiter') {
-    navigate("/waiter-test");
-  }
-
-  if (loggedInRole === 'superadmin') {
-     navigate("/superadmin-test");
-  }
-
-  if (loggedInRole === 'user') {
-    navigate("/user-dashboard");
-  }
-
   return (
-    <div className="login-container">
-      <h2 className="login-title">Login / Signup</h2>
-      <form className="login-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label">Role:</label>
-          <select className="form-select" value={role} onChange={handleRoleChange}>
-            <option value="user">Normal User</option>
-            <option value="waiter">Waiter</option>
-            <option value="superadmin">Superadmin</option>
-          </select>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-logo">
+          <h1>🍽 DineGo</h1>
+          <p>Your smart canteen companion</p>
         </div>
 
-        {role === 'user' && (
-          <div className="form-group">
-            <button className="switch-button" type="button" onClick={() => setIsSignup(!isSignup)}>
-              {isSignup ? 'Switch to Login' : 'Switch to Signup'}
+        {/* Role Tabs */}
+        <div className="role-tabs">
+          {ROLES.map((r) => (
+            <button
+              key={r.value}
+              className={`role-tab${role === r.value ? ' active' : ''}`}
+              type="button"
+              onClick={() => handleRoleChange(r.value)}
+            >
+              {r.label}
             </button>
+          ))}
+        </div>
+
+        <form className="login-form" onSubmit={handleSubmit}>
+          {role === 'user' && isSignup && (
+            <>
+              <div className="form-field">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  placeholder="Bhushan Sharma"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  id="signup-name"
+                />
+              </div>
+              <div className="form-field">
+                <label>Phone Number</label>
+                <input
+                  type="tel"
+                  placeholder="9876543210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  id="signup-phone"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="form-field">
+            <label>Email Address</label>
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              id="login-email"
+            />
           </div>
-        )}
 
-        {role === 'user' && isSignup && (
-          <>
-            <div className="form-group">
-              <label className="form-label">Name:</label>
-              <input
-                className="form-input"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Phone:</label>
-              <input
-                className="form-input"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-            </div>
-          </>
-        )}
+          <div className="form-field">
+            <label>Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              id="login-password"
+            />
+          </div>
 
-        <div className="form-group">
-          <label className="form-label">Email:</label>
-          <input
-            className="form-input"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Password:</label>
-          <input
-            className="form-input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        {error && <p className="error-message">{error}</p>}
-        {success && <p className="success-message">{success}</p>}
-        <button className="submit-button" type="submit">{role === 'user' && isSignup ? 'Signup' : 'Login'}</button>
-      </form>
+          {error && <div className="login-error">{error}</div>}
+          {success && <div className="login-success">{success}</div>}
+
+          <button className="login-submit" type="submit" id="login-submit" disabled={loading}>
+            {loading ? 'Please wait…' : (role === 'user' && isSignup ? 'Create Account' : 'Sign In')}
+          </button>
+
+          {role === 'user' && (
+            <div className="auth-toggle">
+              {isSignup ? 'Already have an account?' : "Don't have an account?"}
+              <span onClick={() => { setIsSignup(!isSignup); setError(''); }}>
+                {isSignup ? 'Sign In' : 'Sign Up'}
+              </span>
+            </div>
+          )}
+        </form>
+      </div>
     </div>
   );
 };
