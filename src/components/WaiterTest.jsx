@@ -32,10 +32,11 @@ const WaiterTest = () => {
         items: order.items?.map(item => `${item.qty}× ${item.itemName}`).join(', ') || "No items",
         date: order.date,
         time: order.time,
-        verified: order.status === 'pending' ? 'Pending' : 'Served',
+        verified: order.status === 'pending' ? 'Pending' : (order.status === 'cancelled' ? 'Cancelled' : 'Served'),
         otp: order.otp,
         tableno: order.tableno,
-        waiterEmail: order.waiterEmail
+        waiterEmail: order.waiterEmail,
+        status: order.status
       }));
       setOrders(mappedOrders);
     } catch (error) {
@@ -121,12 +122,14 @@ const WaiterTest = () => {
   const filteredOrders = assignedOrders.filter(o => {
     if (filter === 'pending') return o.verified === 'Pending';
     if (filter === 'served') return o.verified === 'Served';
+    if (filter === 'cancelled') return o.verified === 'Cancelled';
     return true;
   });
 
   const totalCount = assignedOrders.length;
   const pendingCount = assignedOrders.filter(o => o.verified === 'Pending').length;
   const servedCount = assignedOrders.filter(o => o.verified === 'Served').length;
+  const cancelledCount = assignedOrders.filter(o => o.verified === 'Cancelled').length;
 
   return (
     <div className="waiter-container">
@@ -149,6 +152,10 @@ const WaiterTest = () => {
           <div className="stat-pill">
             <span className="num" style={{ color: '#22c55e' }}>{servedCount}</span>
             <span className="lbl">Served</span>
+          </div>
+          <div className="stat-pill">
+            <span className="num" style={{ color: '#ef4444' }}>{cancelledCount}</span>
+            <span className="lbl">Cancelled</span>
           </div>
         </div>
 
@@ -173,7 +180,7 @@ const WaiterTest = () => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', background: 'var(--bg-secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', background: 'var(--bg-secondary)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>{totalCount}</div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Assigned</div>
@@ -185,6 +192,10 @@ const WaiterTest = () => {
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#22c55e' }}>{servedCount}</div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Served</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ef4444' }}>{cancelledCount}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Cancelled</div>
             </div>
           </div>
 
@@ -211,8 +222,8 @@ const WaiterTest = () => {
       ) : (
         <>
           {/* Filter Tabs */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {['pending', 'served', 'all'].map(f => (
+          <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+            {['pending', 'served', 'cancelled', 'all'].map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -224,10 +235,11 @@ const WaiterTest = () => {
                   color: filter === f ? 'white' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   fontWeight: 600,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                {f.charAt(0).toUpperCase() + f.slice(1)} ({f === 'pending' ? pendingCount : f === 'served' ? servedCount : totalCount})
+                {f.charAt(0).toUpperCase() + f.slice(1)} ({f === 'pending' ? pendingCount : f === 'served' ? servedCount : f === 'cancelled' ? cancelledCount : totalCount})
               </button>
             ))}
           </div>
@@ -243,11 +255,11 @@ const WaiterTest = () => {
           {filteredOrders.map((order) => (
             <div
               key={order.id}
-              className={`waiter-card ${order.verified === "Served" ? "served" : "pending"}`}
+              className={`waiter-card ${order.verified === "Served" ? "served" : order.verified === "Cancelled" ? "cancelled" : "pending"}`}
             >
               <div className="waiter-card-header">
                 <span className="waiter-order-id">{order.id}</span>
-                <span className={`waiter-status-badge ${order.verified === "Served" ? "served" : "pending"}`}>
+                <span className={`waiter-status-badge ${order.verified === "Served" ? "served" : order.verified === "Cancelled" ? "cancelled" : "pending"}`}>
                   <span className="status-dot" />
                   {order.verified}
                 </span>
