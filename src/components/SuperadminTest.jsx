@@ -233,8 +233,16 @@ const SuperadminTest = () => {
     }
   };
 
-  const handleCancelOrder = async (order_id) => {
-    if (!window.confirm(`Are you sure you want to CANCEL order ${order_id}?`)) return;
+  const [adminCancelTarget, setAdminCancelTarget] = useState(null);
+
+  const promptAdminCancelOrder = (order) => {
+    setAdminCancelTarget(order);
+  };
+
+  const confirmAdminCancelOrder = async () => {
+    if (!adminCancelTarget) return;
+    const { order_id, totalBill, userName } = adminCancelTarget;
+    setError(''); setSuccess('');
     try {
       const res = await fetch(`${API_URL}/api/cancel-order`, {
         method: 'POST',
@@ -243,13 +251,15 @@ const SuperadminTest = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setSuccess(`Order ${order_id} has been cancelled!`);
+        setSuccess(data.message || `Order #${order_id} cancelled! ₹${totalBill} refunded to customer wallet.`);
         fetchAllOrders();
       } else {
         setError(data.message || 'Failed to cancel order');
       }
     } catch {
       setError('Server error cancelling order');
+    } finally {
+      setAdminCancelTarget(null);
     }
   };
 
@@ -1104,7 +1114,7 @@ const SuperadminTest = () => {
                     ) : (
                       <button
                         className="action-btn delete"
-                        onClick={() => handleCancelOrder(order.order_id)}
+                        onClick={() => promptAdminCancelOrder(order)}
                         style={{ marginTop: '0.6rem', width: '100%', padding: '0.45rem', fontSize: '0.78rem', fontWeight: 700 }}
                       >
                         🚫 Cancel Order & Refund to Wallet
@@ -1113,6 +1123,40 @@ const SuperadminTest = () => {
                   </div>
                 ))}
             </div>
+
+            {/* In-App Superadmin Cancellation Modal */}
+            {adminCancelTarget && (
+              <div className="payment-success-overlay" style={{ zIndex: 9999 }}>
+                <div className="payment-success-modal" style={{ border: '1px solid rgba(239, 68, 68, 0.4)', maxWidth: '400px' }}>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto', fontSize: '1.8rem', color: '#f87171' }}>
+                    🚫
+                  </div>
+
+                  <h3 className="success-modal-title" style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>
+                    Cancel Order & Refund Customer?
+                  </h3>
+                  <p className="success-modal-msg" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                    Are you sure you want to cancel <strong style={{ color: 'white' }}>Order #{adminCancelTarget.order_id}</strong> for <strong style={{ color: '#c084fc' }}>{adminCancelTarget.userName || adminCancelTarget.userEmail}</strong>?<br />
+                    <span style={{ color: '#4ade80', fontWeight: 700 }}>₹{adminCancelTarget.totalBill}</span> will be refunded directly to customer's Wallet Balance.
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
+                    <button
+                      onClick={() => setAdminCancelTarget(null)}
+                      style={{ flex: 1, padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+                    >
+                      Keep Order
+                    </button>
+                    <button
+                      onClick={confirmAdminCancelOrder}
+                      style={{ flex: 1, padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none', color: 'white', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)' }}
+                    >
+                      Cancel & Refund
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

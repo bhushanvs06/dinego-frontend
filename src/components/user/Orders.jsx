@@ -216,10 +216,15 @@ const OrdersPage = () => {
     fetchOrders(email);
   }, []);
 
-  const handleCancelOrder = async (order_id, amount) => {
-    if (!window.confirm(`Are you sure you want to cancel Order #${order_id}?\n₹${amount} will be refunded directly to your Wallet Credits.`)) {
-      return;
-    }
+  const [cancelTarget, setCancelTarget] = useState(null);
+
+  const promptCancelOrder = (order_id, amount) => {
+    setCancelTarget({ order_id, amount });
+  };
+
+  const confirmCancelOrder = async () => {
+    if (!cancelTarget) return;
+    const { order_id, amount } = cancelTarget;
     const email = localStorage.getItem("email");
     setError(""); setSuccess("");
     try {
@@ -230,13 +235,15 @@ const OrdersPage = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        setSuccess(data.message || `Order #${order_id} cancelled! ₹${amount} refunded to your Wallet Credits.`);
+        setSuccess(data.message || `Order #${order_id} cancelled! ₹${amount?.toFixed(2)} refunded to your Wallet Credits.`);
         fetchOrders(email);
       } else {
         setError(data.message || 'Failed to cancel order');
       }
     } catch {
       setError('Server error cancelling order');
+    } finally {
+      setCancelTarget(null);
     }
   };
 
@@ -300,10 +307,44 @@ const OrdersPage = () => {
 
         <div className="orders-list">
           {filtered.map((order, idx) => (
-            <OrderCard key={order.order_id || idx} order={order} onCancelOrder={handleCancelOrder} />
+            <OrderCard key={order.order_id || idx} order={order} onCancelOrder={promptCancelOrder} />
           ))}
         </div>
       </div>
+
+      {/* In-App Order Cancellation Modal */}
+      {cancelTarget && (
+        <div className="payment-success-overlay">
+          <div className="payment-success-modal" style={{ border: '1px solid rgba(239, 68, 68, 0.4)', maxWidth: '380px' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem auto', fontSize: '1.8rem', color: '#f87171' }}>
+              ⚠️
+            </div>
+
+            <h3 className="success-modal-title" style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>
+              Cancel Order & Refund?
+            </h3>
+            <p className="success-modal-msg" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+              Are you sure you want to cancel <strong style={{ color: 'white' }}>Order #{cancelTarget.order_id}</strong>?<br />
+              <span style={{ color: '#4ade80', fontWeight: 700 }}>₹{cancelTarget.amount?.toFixed(2)}</span> will be instantly refunded to your Wallet Credits.
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
+              <button
+                onClick={() => setCancelTarget(null)}
+                style={{ flex: 1, padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+              >
+                Keep Order
+              </button>
+              <button
+                onClick={confirmCancelOrder}
+                style={{ flex: 1, padding: '0.65rem', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, #ef4444, #dc2626)', border: 'none', color: 'white', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)' }}
+              >
+                Confirm & Refund
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Nav */}
       <nav className="bottom-nav">
