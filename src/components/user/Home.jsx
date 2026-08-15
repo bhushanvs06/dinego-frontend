@@ -306,7 +306,7 @@ const HomePage = () => {
       {/* Header */}
       <header className="header">
         <div className="header-brand">
-          <span className="emoji">🍽</span>
+          <img src="/logo.png" alt="DineGo" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover' }} />
           <h1>DineGo</h1>
         </div>
         <button className="logout-button" onClick={handleLogout} id="logout-btn">

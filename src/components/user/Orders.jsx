@@ -110,6 +110,35 @@ const OrderCard = ({ order }) => {
               </div>
             </div>
           )}
+          {order.status !== 'completed' && order.status !== 'cancelled' && (
+            <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border)' }}>
+              <button
+                className="cancel-order-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancelOrder(order.order_id, order.totalBill);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '0.55rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  color: '#f87171',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                ❌ Cancel Order & Refund ₹{order.totalBill?.toFixed(2)} to Wallet
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -163,6 +192,7 @@ const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("orders");
   const [filter, setFilter] = useState("all");
 
@@ -171,6 +201,30 @@ const OrdersPage = () => {
     if (!email) { navigate("/login"); return; }
     fetchOrders(email);
   }, []);
+
+  const handleCancelOrder = async (order_id, amount) => {
+    if (!window.confirm(`Are you sure you want to cancel Order #${order_id}?\n₹${amount} will be refunded directly to your Wallet Credits.`)) {
+      return;
+    }
+    const email = localStorage.getItem("email");
+    setError(""); setSuccess("");
+    try {
+      const res = await fetch(`${API_URL}/api/user/cancel-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, order_id })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(data.message || `Order #${order_id} cancelled! ₹${amount} refunded to your Wallet Credits.`);
+        fetchOrders(email);
+      } else {
+        setError(data.message || 'Failed to cancel order');
+      }
+    } catch {
+      setError('Server error cancelling order');
+    }
+  };
 
   const fetchOrders = async (email) => {
     try {
