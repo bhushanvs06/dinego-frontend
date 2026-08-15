@@ -133,17 +133,31 @@ const CartPage = () => {
   const handleCashCheckout = async () => {
     setError(""); setSuccess("");
     if (cart.length === 0) { setError("Cart is empty"); return; }
+    if (special && !table) { setError("Please enter your table number"); return; }
+
     const email = localStorage.getItem("email");
     try {
       const r = await fetch(`${API_URL}/api/user/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ordertype: "take away", tableno: "", paymentMethod: "Cash", appliedWallet }),
+        body: JSON.stringify({
+          email,
+          ordertype: special ? "on table" : "take away",
+          tableno: special ? table : "",
+          paymentMethod: appliedWallet > 0 ? "Cash + Wallet Credits" : "Cash",
+          appliedWallet
+        }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.message || "Failed to place order");
       setCart([]);
-      setSuccess(`✅ Order placed! ID: ${data.order_id}`);
+      if (data.remainingWallet !== undefined) setWalletBalance(data.remainingWallet);
+      setOtp(data.otp || "");
+      if (data.otp) {
+        setShowQR(true);
+      } else {
+        setSuccess(`✅ Order placed! Pay Cash at Counter. ID: ${data.order_id}`);
+      }
     } catch (err) { setError(err.message); }
   };
 
@@ -451,16 +465,20 @@ const CartPage = () => {
 
                 <div className="payment-btns">
                   {/* Cash – no payment gateway */}
-                  {!special && (
-                    <button
-                      className="pay-btn"
-                      onClick={() => setShowCashModal(true)}
-                      id="pay-cash"
-                      disabled={paying || !acceptingOrders}
-                    >
-                      {acceptingOrders ? "💵 Cash (Pay at Counter)" : "🔒 Store Closed"}
-                    </button>
-                  )}
+                  <button
+                    className="pay-btn"
+                    onClick={() => {
+                      if (special && !table) {
+                        setError("Please enter your table number first");
+                        return;
+                      }
+                      setShowCashModal(true);
+                    }}
+                    id="pay-cash"
+                    disabled={paying || !acceptingOrders}
+                  >
+                    {acceptingOrders ? "💵 Cash (Pay at Counter)" : "🔒 Store Closed"}
+                  </button>
 
                   {/* UPI / Online – Razorpay */}
                   <button
