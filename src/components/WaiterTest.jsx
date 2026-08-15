@@ -116,8 +116,8 @@ const WaiterTest = () => {
   const handleCloseScanner = () => setScanningOrderId(null);
   const handleCloseAlert = () => setAlertInfo({ show: false, message: '', type: '' });
 
-  // Only show orders assigned to this waiter OR unassigned table orders
-  const assignedOrders = orders.filter(o => !o.waiterEmail || o.waiterEmail.toLowerCase() === waiterEmail.toLowerCase());
+  // Only show orders specifically assigned to this logged-in waiter
+  const assignedOrders = orders.filter(o => o.waiterEmail && o.waiterEmail.toLowerCase() === waiterEmail.toLowerCase());
 
   const filteredOrders = assignedOrders.filter(o => {
     if (filter === 'pending') return o.verified === 'Pending';
