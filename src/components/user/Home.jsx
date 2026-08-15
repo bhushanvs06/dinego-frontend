@@ -84,6 +84,7 @@ const HomePage = () => {
   const [expandedCategories, setExpandedCategories] = useState({});
   const [error, setError] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
   const recognitionRef = useRef(null);
 
   useEffect(() => {
@@ -92,7 +93,16 @@ const HomePage = () => {
     fetchMenu();
     fetchCart();
     fetchBanners();
+    fetchWalletBalance(email);
   }, []);
+
+  const fetchWalletBalance = async (email) => {
+    try {
+      const res = await fetch(`${API_URL}/api/user/wallet?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      setWalletBalance(data.wallet || 0);
+    } catch { /* silence */ }
+  };
 
   const fetchBanners = async () => {
     try {
@@ -309,10 +319,31 @@ const HomePage = () => {
           <img src="/logo.png" alt="DineGo" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover' }} />
           <h1>DineGo</h1>
         </div>
-        <button className="logout-button" onClick={handleLogout} id="logout-btn">
-          <LogOut size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-          Logout
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <button
+            onClick={() => navigate("/user-dashboard/account")}
+            style={{
+              padding: '0.35rem 0.65rem',
+              borderRadius: '999px',
+              border: '1px solid rgba(168, 85, 247, 0.4)',
+              background: 'rgba(168, 85, 247, 0.12)',
+              color: '#c084fc',
+              fontSize: '0.76rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem'
+            }}
+            title="View Wallet Credits Balance"
+          >
+            💳 ₹{walletBalance.toFixed(2)}
+          </button>
+          <button className="logout-button" onClick={handleLogout} id="logout-btn">
+            <LogOut size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            Logout
+          </button>
+        </div>
       </header>
 
       {/* Search */}
