@@ -247,7 +247,7 @@ const SuperadminTest = () => {
       const res = await fetch(`${API_URL}/api/cancel-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order_id })
+        body: JSON.stringify({ order_id, userEmail: adminCancelTarget.userEmail })
       });
       const data = await res.json();
       if (res.ok) {
