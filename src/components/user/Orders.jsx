@@ -112,31 +112,37 @@ const OrderCard = ({ order }) => {
           )}
           {order.status !== 'completed' && order.status !== 'cancelled' && (
             <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border)' }}>
-              <button
-                className="cancel-order-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCancelOrder(order.order_id, order.totalBill);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '0.55rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  color: '#f87171',
-                  fontWeight: 700,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.4rem',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                ❌ Cancel Order & Refund ₹{order.totalBill?.toFixed(2)} to Wallet
-              </button>
+              {!order.waiterName && !order.waiterEmail ? (
+                <button
+                  className="cancel-order-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCancelOrder(order.order_id, order.totalBill);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: '#f87171',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  ❌ Cancel Order & Refund ₹{order.totalBill?.toFixed(2)} to Wallet
+                </button>
+              ) : (
+                <div style={{ padding: '0.45rem 0.75rem', borderRadius: 'var(--radius-md)', background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#93c5fd', fontSize: '0.75rem', fontWeight: 600, textAlign: 'center' }}>
+                  👨‍🍳 Order assigned to {order.waiterName || order.waiterEmail} (Preparation in progress - Cannot cancel)
+                </div>
+              )}
             </div>
           )}
         </div>
