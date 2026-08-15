@@ -58,6 +58,7 @@ const SuperadminTest = () => {
   const [newSuperadminPassword, setNewSuperadminPassword] = useState('');
   const [newWaiterName, setNewWaiterName] = useState('');
   const [newWaiterEmail, setNewWaiterEmail] = useState('');
+  const [newWaiterPassword, setNewWaiterPassword] = useState('');
   const [superadmins, setSuperadmins] = useState([]);
   const [acceptingOrders, setAcceptingOrders] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -201,11 +202,13 @@ const SuperadminTest = () => {
     });
   };
 
-  // Fetch universal and daily items on mount
+  // Fetch universal items, daily items, staff, and status on mount
   useEffect(() => {
     fetchUniversalItems();
     fetchDailyItems();
     fetchCanteenStatus();
+    fetchWaiters();
+    fetchSuperadmins();
   }, []);
 
   const fetchCanteenStatus = async () => {
