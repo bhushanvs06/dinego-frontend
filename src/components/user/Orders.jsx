@@ -11,7 +11,7 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelled", color: "status-cancelled" },
 };
 
-const OrderCard = ({ order }) => {
+const OrderCard = ({ order, onCancelOrder }) => {
   const [expanded, setExpanded] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
@@ -292,7 +292,7 @@ const OrdersPage = () => {
 
         <div className="orders-list">
           {filtered.map((order, idx) => (
-            <OrderCard key={idx} order={order} />
+            <OrderCard key={order.order_id || idx} order={order} onCancelOrder={handleCancelOrder} />
           ))}
         </div>
       </div>
