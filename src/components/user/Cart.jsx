@@ -406,33 +406,42 @@ const CartPage = () => {
                 <span className="payment-label">Choose Payment</span>
 
                 {/* Wallet Balance & Payment Option */}
-                {walletBalance > 0 && (
-                  <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(168, 85, 247, 0.4)', marginBottom: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: 'white' }}>
-                        <input
-                          type="checkbox"
-                          checked={useWallet}
-                          onChange={(e) => setUseWallet(e.target.checked)}
-                          style={{ width: '16px', height: '16px', accentColor: '#a855f7', cursor: 'pointer' }}
-                        />
-                        💳 Apply Wallet Balance (Available: ₹{walletBalance.toFixed(2)})
-                      </label>
+                <div style={{ background: 'var(--bg-secondary)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(168, 85, 247, 0.4)', marginBottom: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: walletBalance > 0 ? 'pointer' : 'default', fontSize: '0.85rem', fontWeight: 700, color: 'white' }}>
+                      <input
+                        type="checkbox"
+                        checked={useWallet && walletBalance > 0}
+                        disabled={walletBalance <= 0}
+                        onChange={(e) => setUseWallet(e.target.checked)}
+                        style={{ width: '16px', height: '16px', accentColor: '#a855f7', cursor: 'pointer' }}
+                      />
+                      💳 Wallet Balance: ₹{walletBalance.toFixed(2)}
+                    </label>
+                    {appliedWallet > 0 ? (
                       <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#4ade80' }}>
                         -₹{appliedWallet.toFixed(2)}
                       </span>
-                    </div>
-
-                    {appliedWallet > 0 && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border)', paddingTop: '0.35rem' }}>
-                        <span>Bill Total: ₹{grossTotal.toFixed(2)}</span>
-                        <span style={{ color: '#c084fc', fontWeight: 700 }}>
-                          Remaining to Pay: ₹{finalPayable.toFixed(2)}
-                        </span>
-                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {walletBalance === 0 ? '₹0.00 Available' : 'Unchecked'}
+                      </span>
                     )}
                   </div>
-                )}
+
+                  {appliedWallet > 0 ? (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border)', paddingTop: '0.35rem' }}>
+                      <span>Bill Total: ₹{grossTotal.toFixed(2)}</span>
+                      <span style={{ color: '#c084fc', fontWeight: 700 }}>
+                        Remaining to Pay: ₹{finalPayable.toFixed(2)}
+                      </span>
+                    </div>
+                  ) : walletBalance === 0 ? (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px dashed var(--border)', paddingTop: '0.35rem' }}>
+                      💡 Refunds from cancelled orders are automatically added here for future bill payments.
+                    </div>
+                  ) : null}
+                </div>
 
                 {/* Razorpay notice */}
                 <div className="razorpay-notice">
