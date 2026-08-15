@@ -16,7 +16,6 @@ const CartPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [paying, setPaying] = useState(false); // loading state for Razorpay
-  const [showCashModal, setShowCashModal] = useState(false); // Pay on counter modal
   const [acceptingOrders, setAcceptingOrders] = useState(true);
   const [walletBalance, setWalletBalance] = useState(0);
 
@@ -129,37 +128,7 @@ const CartPage = () => {
   const finalPayable = Number((grossTotal - appliedWallet).toFixed(2));
   const total = finalPayable; // for backwards compatibility
 
-  // ── Cash checkout (direct, no payment gateway) ───────────
-  const handleCashCheckout = async () => {
-    setError(""); setSuccess("");
-    if (cart.length === 0) { setError("Cart is empty"); return; }
-    if (special && !table) { setError("Please enter your table number"); return; }
 
-    const email = localStorage.getItem("email");
-    try {
-      const r = await fetch(`${API_URL}/api/user/order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          ordertype: special ? "on table" : "take away",
-          tableno: special ? table : "",
-          paymentMethod: appliedWallet > 0 ? "Cash + Wallet Credits" : "Cash",
-          appliedWallet
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.message || "Failed to place order");
-      setCart([]);
-      if (data.remainingWallet !== undefined) setWalletBalance(data.remainingWallet);
-      setOtp(data.otp || "");
-      if (data.otp) {
-        setShowQR(true);
-      } else {
-        setSuccess(`✅ Order placed! Pay Cash at Counter. ID: ${data.order_id}`);
-      }
-    } catch (err) { setError(err.message); }
-  };
 
   // ── Razorpay UPI checkout ─────────────────────────────────
   const handleRazorpayCheckout = async () => {
@@ -464,42 +433,23 @@ const CartPage = () => {
                 </div>
 
                 <div className="payment-btns">
-                  {/* Cash – no payment gateway */}
-                  <button
-                    className="pay-btn"
-                    onClick={() => {
-                      if (special && !table) {
-                        setError("Please enter your table number first");
-                        return;
-                      }
-                      setShowCashModal(true);
-                    }}
-                    id="pay-cash"
-                    disabled={paying || !acceptingOrders}
-                  >
-                    {acceptingOrders ? "💵 Cash (Pay at Counter)" : "🔒 Store Closed"}
-                  </button>
-
-                  {/* UPI / Online – Razorpay */}
+                  {/* UPI / Online – Razorpay / Wallet */}
                   <button
                     className={`pay-btn primary${paying ? " loading" : ""}`}
                     onClick={handleRazorpayCheckout}
                     id="pay-razorpay"
                     disabled={paying || !acceptingOrders}
-                    style={{ flex: special ? 1 : undefined }}
+                    style={{ width: '100%' }}
                   >
                     {!acceptingOrders ? (
                       "🔒 Store Closed"
                     ) : paying ? (
                       <><Loader2 size={16} className="spin-icon" /> Processing…</>
                     ) : (
-                      special ? "📱 Pay & Get OTP" : "📱 Pay Online"
+                      finalPayable <= 0 ? "⚡ Pay ₹0.00 with Wallet Credits" : (special ? "📱 Pay & Get OTP" : "📱 Pay Online")
                     )}
                   </button>
                 </div>
-
-                {/* Test card hint */}
-                
               </div>
             )}
           </>
@@ -547,39 +497,6 @@ const CartPage = () => {
                 </button>
                 <button className="done-btn" onClick={() => setSuccess("")}>
                   Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Cash Pay on Counter Confirmation Modal */}
-        {showCashModal && (
-          <div className="payment-success-overlay">
-            <div className="payment-success-modal" style={{ border: '1px solid rgba(245, 158, 11, 0.4)' }}>
-              <div className="success-checkmark-circle" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 0 30px rgba(245, 158, 11, 0.5)', fontSize: '2rem' }}>
-                💵
-              </div>
-              <h3 className="success-modal-title">Pay on Counter</h3>
-              <div className="success-modal-msg" style={{ color: '#fde68a', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                Total Payable: <strong>₹{total.toFixed(2)}</strong>
-                <p style={{ marginTop: '0.4rem', fontSize: '0.78rem', opacity: 0.9 }}>
-                  Please pay Cash directly at the canteen counter when collecting your food.
-                </p>
-              </div>
-              <div className="success-actions">
-                <button
-                  className="view-orders-btn"
-                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)' }}
-                  onClick={() => {
-                    setShowCashModal(false);
-                    handleCashCheckout();
-                  }}
-                >
-                  ✓ Confirm & Place Order
-                </button>
-                <button className="done-btn" onClick={() => setShowCashModal(false)}>
-                  Cancel
                 </button>
               </div>
             </div>
